@@ -60,16 +60,34 @@ def get_video_details(video_ids):
 # -------------------------
 # DISCORD
 # -------------------------
-def send_discord(webhook, video_id, event_type):
-    heading = (
-        "NO WAY?? Unstable SMP MEMBER IS LIVE!!"
-        if event_type == "live"
-        else "FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!"
-    )
-
+def send_discord(webhook, video_id, event_type, group):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    message = f"{heading}\n\n{video_url}"
+    # Group A notification
+    if group == "A":
+        if event_type == "live":
+            message = (
+                "NO WAY?? Unstable SMP MEMBER IS LIVE!!\n\n"
+                f"{video_url}"
+            )
+        else:
+            message = (
+                "FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!\n\n"
+                f"{video_url}"
+            )
+
+    # Group B notification
+    elif group == "B":
+        if event_type == "live":
+            message = (
+                "🔴 LIVE NOW!\n\n"
+                f"{video_url}"
+            )
+        else:
+            message = (
+                "🚨 NEW VIDEO ALERT 🚨\n\n"
+                f"{video_url}"
+            )
 
     payload = {
         "content": message,
@@ -78,7 +96,8 @@ def send_discord(webhook, video_id, event_type):
 
     requests.post(webhook, json=payload, timeout=15).raise_for_status()
 
-    print(f"Sent notification: {video_id}")
+    print(f"Sent {event_type} notification to Group {group}: {video_id}")
+
 
 
 # -------------------------
@@ -146,11 +165,11 @@ def main():
 
             if broadcast == "live":
                 if video_id not in live_notified:
-                    send_discord(webhook, video_id, "live")
+                    send_discord(webhook, video_id, "live", channel["group"])
                     live_notified.add(video_id)
 
             elif video_id not in seen and broadcast == "none" and live_details is None:
-                send_discord(webhook, video_id, "video")
+                send_discord(webhook, video_id, "video", channel["group"])
 
             seen.add(video_id)
 
