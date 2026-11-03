@@ -1,61 +1,63 @@
 {
-  "last_run": "2026-11-03T04:03:33.646787+00:00",
+  "last_run": "2026-11-03T04:32:02.051589+00:00",
   "channels": {
     "UCk2uxbWi5py_iJXaEsh2YRA": {
       "seen": [
-        "8_Au10osdEo",
-        "lA1ohDqw8XA",
-        "ynkhNRpQ9Xc",
+        "ipEi6kkTIlI",
         "IOS7FKtiyxE",
+        "j7JddsoUH8A",
+        "8_Au10osdEo",
+        "ynkhNRpQ9Xc",
+        "lA1ohDqw8XA",
         "u21St-Q58GI",
-        "V9HzAdwgf-I",
-        "y5IdSoHdkgg",
         "FEropZ_Tq7Y",
-        "ipEi6kkTIlI"
+        "y5IdSoHdkgg",
+        "V9HzAdwgf-I"
       ],
       "live_notified": []
     },
     "UCPLMPHT-d8GZOqL_AHJFdQQ": {
       "seen": [
-        "1EgS0othQe4",
-        "9-j9GWjyWpY",
-        "we2dBzQxtgQ",
-        "bHxLy6Qza3M",
-        "NT2Is90lFoI",
-        "O-ipuD6qy1Q",
-        "zMoihcFz2kY",
-        "HDDxxeh3r-E",
         "bP86n9nFoJY",
-        "BWmWZTDxFrk"
+        "1EgS0othQe4",
+        "HDDxxeh3r-E",
+        "zMoihcFz2kY",
+        "9-j9GWjyWpY",
+        "NT2Is90lFoI",
+        "BWmWZTDxFrk",
+        "bHxLy6Qza3M",
+        "we2dBzQxtgQ",
+        "O-ipuD6qy1Q"
       ],
       "live_notified": []
     },
     "UCkzzNLnuM-VsATWC53ehwOQ": {
       "seen": [
-        "smi6fnthKI0",
-        "4v_jk0w7wR0",
-        "_hyFGrcVv5U",
         "OmFo1yZyBhc",
+        "VOuEQkWDfao",
+        "5hG_nAYEC2g",
+        "_hyFGrcVv5U",
         "Ytm8WiQLNZA",
+        "smi6fnthKI0",
         "_6ucSC1-7ZI",
         "ZjO0dep5VjU",
         "Zw_HE1mQ7rA",
-        "VOuEQkWDfao",
-        "5hG_nAYEC2g"
+        "4v_jk0w7wR0"
       ],
       "live_notified": []
     },
     "UCvYPobTo42NM36X7VC4dLhA": {
       "seen": [
-        "ljppGDO4HlU",
         "8t8YBu7bdT0",
+        "Ym2wmd19S_c",
+        "ljppGDO4HlU",
+        "h68WUZ8b0O0",
+        "3Uhv1tJo7gc",
         "ZT-k42SC7L0",
         "UnFIrVKA9Zc",
-        "yBy5NnLTiWQ",
-        "h68WUZ8b0O0",
-        "Ym2wmd19S_c",
-        "3Uhv1tJo7gc",
-        "BkYekSPynVo"
+        "BkYekSPynVo",
+        "BCiRLHaeHkI",
+        "yBy5NnLTiWQ"
       ],
       "live_notified": []
     }
