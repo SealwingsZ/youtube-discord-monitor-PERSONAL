@@ -1,0 +1,36 @@
+
+{
+  "check_interval_minutes": 5,
+
+  "groups": {
+    "A": {
+      "webhook_env": "DISCORD_WEBHOOK_A"
+    },
+    "B": {
+      "webhook_env": "DISCORD_WEBHOOK_B"
+    }
+  },
+
+  "channels": [
+    {
+      "name": "SpokeIsHere",
+      "id": "UCk2uxbWi5py_iJXaEsh2YRA",
+      "group": "A"
+    },
+    {
+      "name": "ParrotX2",
+      "id": "UCPLMPHT-d8GZOqL_AHJFdQQ",
+      "group": "A"
+    },
+    {
+      "name": "Wemmbu",
+      "id": "UCkzzNLnuM-VsATWC53ehwOQ",
+      "group": "A"
+    },
+    {
+      "name": "FlameFrags",
+      "id": "UCvYPobTo42NM36X7VC4dLhA",
+      "group": "A"
+    }
+  ]
+}
