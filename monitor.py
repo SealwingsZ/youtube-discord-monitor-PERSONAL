@@ -146,10 +146,11 @@ def main():
 
             if broadcast == "live":
                 if video_id not in live_notified:
-                    send_discord(webhook, snippet["title"], channel["name"], video_id, "live")
+                    send_discord(webhook, video_id, "live")
                     live_notified.add(video_id)
+
             elif video_id not in seen and broadcast == "none" and live_details is None:
-                send_discord(webhook, snippet["title"], channel["name"], video_id, "video")
+                send_discord(webhook, video_id, "video")
 
             seen.add(video_id)
 
