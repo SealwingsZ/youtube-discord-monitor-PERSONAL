@@ -109,58 +109,29 @@ def get_video_details(video_ids):
 # DISCORD
 # -------------------------
 
-def send_discord(webhook, channel, video, live=False):
+def send_discord(webhook, title, channel_name, video_id, event_type):
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    snippet = video["snippet"]
-
-    title = snippet.get("title", "Untitled")
-    video_id = video["id"]
-
-    url = f"https://www.youtube.com/watch?v={video_id}"
-
-    if live:
-        heading = "🔴 LIVE NOW!"
-        color = 0xFF0000
+    if event_type == "live":
+        heading = "Unstable SMP MEMBER IS LIVE!!"
     else:
-        heading = "🎬 NEW VIDEO!"
-        color = 0x5865F2
+        heading = "Unstable SMP NEW VIDEO!!"
 
-    embed = {
-        "title": heading,
-        "description": (
-            f"**{title}**\n\n"
-            f"ช่อง: {channel['name']}\n\n"
-            f"[▶ รับชมบน YouTube]({url})"
-        ),
-        "url": url,
-        "color": color,
-        "footer": {
-            "text": channel["name"]
+    message = (
+        f"{heading}\n\n"
+        f"{title}\n"
+        f"by {channel_name}\n\n"
+        f"{video_url}"
+    )
+
+    payload = {
+        "content": message,
+        "allowed_mentions": {
+            "parse": []
         }
     }
 
-    thumbnails = snippet.get("thumbnails", {})
-    thumbnail = (
-        thumbnails.get("high")
-        or thumbnails.get("medium")
-        or thumbnails.get("default")
-    )
-
-    if thumbnail:
-        embed["thumbnail"] = {
-            "url": thumbnail["url"]
-        }
-
-    response = session.post(
-        webhook,
-        params={"wait": "true"},
-        json={
-            "embeds": [embed],
-            "allowed_mentions": {"parse": []}
-        },
-        timeout=30
-    )
-
+    response = requests.post(webhook, json=payload, timeout=15)
     response.raise_for_status()
 
     print(f"Sent: {title}")
@@ -291,9 +262,10 @@ def main():
 
                     send_discord(
                         webhook,
-                        channel,
-                        video,
-                        live=True
+                        video_title,
+                        channel["name"],
+                        video_id,
+                        "video"
                     )
 
                     live_notified.add(video_id)
@@ -310,9 +282,10 @@ def main():
 
                 send_discord(
                     webhook,
-                    channel,
-                    video,
-                    live=False
+                    video_title,
+                    channel["name"],
+                    video_id,
+                    "live"
                 )
 
             seen.add(video_id)
