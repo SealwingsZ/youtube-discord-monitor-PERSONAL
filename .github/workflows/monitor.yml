@@ -46,5 +46,8 @@ jobs:
 
           if ! git diff --cached --quiet; then
             git commit -m "Update YouTube monitor state"
-            git push
+
+            git pull --rebase origin main
+
+            git push origin main
           fi
