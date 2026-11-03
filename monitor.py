@@ -60,13 +60,25 @@ def get_video_details(video_ids):
 # -------------------------
 # DISCORD
 # -------------------------
-def send_discord(webhook, title, channel_name, video_id, event_type):
-    heading = "Unstable SMP MEMBER IS LIVE!!" if event_type == "live" else "Unstable SMP NEW VIDEO!!"
-    message = f"{heading}\n\n{title}\nby {channel_name}\n\nhttps://www.youtube.com/watch?v={video_id}"
-    
-    payload = {"content": message, "allowed_mentions": {"parse": []}}
+def send_discord(webhook, video_id, event_type):
+    heading = (
+        "NO WAY?? Unstable SMP MEMBER IS LIVE!!"
+        if event_type == "live"
+        else "FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!"
+    )
+
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+    message = f"{heading}\n\n{video_url}"
+
+    payload = {
+        "content": message,
+        "allowed_mentions": {"parse": []}
+    }
+
     requests.post(webhook, json=payload, timeout=15).raise_for_status()
-    print(f"Sent: {title}")
+
+    print(f"Sent notification: {video_id}")
 
 
 # -------------------------
