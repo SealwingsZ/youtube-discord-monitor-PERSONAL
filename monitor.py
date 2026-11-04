@@ -3,6 +3,7 @@ import json
 import requests
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 
 # -------------------------
 # CONFIG
@@ -87,6 +88,7 @@ def send_discord(webhook, video_id, event_type, group, event_time_iso=None):
     }
 
     requests.post(webhook, json=payload, timeout=15).raise_for_status()
+    time.sleep(1)
     print(f"Sent {event_type} notification to Group {group}: {video_id}")
 
 
