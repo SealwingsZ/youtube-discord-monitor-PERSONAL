@@ -31,17 +31,11 @@ def save_state(state):
 
 
 # -------------------------
-# YOUTUBE (Official API - Fast & Safe)
+# YOUTUBE (Official API)
 # -------------------------
 def get_channel_videos_api(channel_id):
-    """แปลง UC เป็น UU แล้วดึงคลิปจาก Upload Playlist (กิน 1 Unit ต่อช่อง)"""
     cid = channel_id.strip()
-    
-    # ถ้าขึ้นต้นด้วย UC ให้เปลี่ยน 2 ตัวแรกเป็น UU เพื่อดึง Upload Playlist ได้ทันที
-    if cid.startswith("UC"):
-        playlist_id = "UU" + cid[2:]
-    else:
-        playlist_id = cid
+    playlist_id = "UU" + cid[2:] if cid.startswith("UC") else cid
 
     data = api_get("playlistItems", {
         "part": "snippet",
@@ -53,7 +47,6 @@ def get_channel_videos_api(channel_id):
 
 
 def get_video_details(video_ids):
-    """เช็กสถานะ Live / Video ผ่าน API Batching (กิน 1 Unit ต่อ 50 IDs)"""
     result = {}
     for start in range(0, len(video_ids), 50):
         batch = video_ids[start:start + 50]
@@ -67,19 +60,26 @@ def get_video_details(video_ids):
 # -------------------------
 # DISCORD
 # -------------------------
-def send_discord(webhook, video_id, event_type, group):
+def send_discord(webhook, video_id, event_type, group, event_time_iso=None):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+    # แปลง ISO Time (จาก YouTube API) เป็น Discord Dynamic Timestamp Tag (<t:UNIX:R>)
+    time_tag = ""
+    if event_time_iso:
+        dt = datetime.fromisoformat(event_time_iso.replace("Z", "+00:00"))
+        unix_ts = int(dt.timestamp())
+        time_tag = f" (<t:{unix_ts}:R>)"  # Discord จะแสดงเป็น "... ago" อัตโนมัติ
 
     if group == "A":
         if event_type == "live":
-            message = f"NO WAY?? Unstable SMP MEMBER IS LIVE!!\n\n{video_url}"
+            message = f"NO WAY?? Unstable SMP MEMBER IS LIVE!!{time_tag}\n\n{video_url}"
         else:
-            message = f"FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!\n\n{video_url}"
+            message = f"FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!{time_tag}\n\n{video_url}"
     elif group == "B":
         if event_type == "live":
-            message = f"🔴 LIVE NOW!\n\n{video_url}"
+            message = f"🔴 LIVE NOW!{time_tag}\n\n{video_url}"
         else:
-            message = f"🚨 NEW VIDEO ALERT 🚨\n\n{video_url}"
+            message = f"🚨 NEW VIDEO ALERT 🚨{time_tag}\n\n{video_url}"
 
     payload = {
         "content": message,
@@ -150,26 +150,26 @@ def main():
             broadcast = snippet.get("liveBroadcastContent", "none")
             live_details = video.get("liveStreamingDetails")
 
-            # เช็กและแจ้งเตือน LIVE
+            # ดึงเวลาเริ่มไลฟ์ หรือเวลาปล่อยคลิป
             if broadcast == "live":
+                event_time = (live_details.get("actualStartTime") if live_details else None) or snippet.get("publishedAt")
                 if video_id not in live_notified:
-                    send_discord(webhook, video_id, "live", channel["group"])
+                    send_discord(webhook, video_id, "live", channel["group"], event_time)
                     live_notified.append(video_id)
                     state_changed = True
 
-            # เช็กและแจ้งเตือนคลิปใหม่
             elif video_id not in seen and broadcast == "none" and live_details is None:
-                send_discord(webhook, video_id, "video", channel["group"])
+                event_time = snippet.get("publishedAt")
+                send_discord(webhook, video_id, "video", channel["group"], event_time)
 
-            # เพิ่ม ID ใหม่ต่อท้าย list
             if video_id not in seen:
                 seen.append(video_id)
                 state_changed = True
 
-        channel_state["seen"] = seen[-100:]
-        channel_state["live_notified"] = live_notified[-100:]
+        channel_state["seen"] = seen[-10:]
+        channel_state["live_notified"] = live_notified[-10:]
 
-    # 4. Save state เฉพาะเมื่อมีการเปลี่ยนแปลงจริง
+    # 4. Save state
     if state_changed:
         state["last_run"] = now.isoformat()
         save_state(state)
