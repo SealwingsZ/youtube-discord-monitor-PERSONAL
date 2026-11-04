@@ -157,7 +157,7 @@ youtube-discord-notifier (https://github.com/SealwingsZ/youtube-discord-notifier
 
 ---------------------------
 
-### *Q&A (Which I did ask myself)*
+### *Q&A (Which I also did ask myself)*
 ;This section was made 100% by humans.
 
 > Q1: ทำไมฉันต้องการให้บอทแจ้งเตือนฉันบน Discord ด้วย? ในเมื่อ Youtube เองก็มีระบบแจ้งเตือนเมื่อมีการลงคลิปใหม่ของช่องที่ฉันติดตามอยู่แล้ว
@@ -192,7 +192,7 @@ youtube-discord-notifier (https://github.com/SealwingsZ/youtube-discord-notifier
 
 > Q5: อธิบายดูดีขนาดนี้ มีข้อจำกัดบ้างไหม?
 
-> A5: มีข้อจำกัด โดยบน Google Cloud Console มีการจำกัด Youtube API ไม่เกิน 10,000 Units ต่อวัน ทำให้มีข้อจำกัดในด้านของจำนวนช่องบน Youtube ที่คุณเลือกให้ตรวจสอบได้ โดยในโปรเจกต์นี้จะจำกัดอยู่ที่ประมาณ 30 ช่อง
+> A5: มีข้อจำกัด โดย Youtube Data API v3 มีกำหนดโควต้าฟรีไว้ที่ 10,000 Units ต่อวัน ทำให้มีข้อจำกัดในด้านของจำนวนช่องบน Youtube ที่คุณสามารถเลือกตรวจสอบ โดยในโปรเจกต์นี้จะจำกัดอยู่ที่ประมาณ 30 ช่อง *(หมายเหตุ: คุณสามารถเพิ่มช่อง Youtube มากกว่า 30 ช่องได้ แต่อาจทำให้โควต้าหมดเร็ว ส่งผลให้ workflow หยุดการทำงานระหว่างวันได้)
 
 ---------------------------
 
