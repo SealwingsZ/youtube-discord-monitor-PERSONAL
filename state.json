@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-11-04T19:55:12.296312+00:00",
+  "last_run": "2026-11-04T20:40:16.870866+00:00",
   "channels": {
     "UCk2uxbWi5py_iJXaEsh2YRA": {
       "seen": [
@@ -277,7 +277,9 @@
         "J2uNETq_rWU",
         "4juk0Gy9Sok"
       ],
-      "live_notified": []
+      "live_notified": [
+        "J2uNETq_rWU"
+      ]
     },
     "UCWR3BeQy_hOQyZli0zFTHYg": {
       "seen": [
