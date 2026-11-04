@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,11 +11,7 @@ API_KEY = os.environ["YOUTUBE_API_KEY"]
 CONFIG_FILE, STATE_FILE = "config.json", "state.json"
 BASE_URL = "https://www.googleapis.com/youtube/v3"
 
-# กำหนด Session พร้อม User-Agent ป้องกันโดน YouTube ปฏิเสธ Request
 session = requests.Session()
-session.headers.update({
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-})
 
 
 def api_get(endpoint, params):
@@ -36,38 +31,29 @@ def save_state(state):
 
 
 # -------------------------
-# YOUTUBE (RSS + API)
+# YOUTUBE (Official API - Fast & Safe)
 # -------------------------
-def get_channel_videos_rss(channel_id):
-    """ดึง 5 คลิปล่าสุดผ่าน RSS Feed (รองรับทั้ง UC และ UU/PL)"""
+def get_channel_videos_api(channel_id):
+    """แปลง UC เป็น UU แล้วดึงคลิปจาก Upload Playlist (กิน 1 Unit ต่อช่อง)"""
     cid = channel_id.strip()
     
-    # สลับใช้ parameter ให้ถูกต้องตามประเภทของ ID
-    if cid.startswith("UU") or cid.startswith("PL"):
-        url = f"https://www.youtube.com/feeds/videos.xml?playlist_id={cid}"
+    # ถ้าขึ้นต้นด้วย UC ให้เปลี่ยน 2 ตัวแรกเป็น UU เพื่อดึง Upload Playlist ได้ทันที
+    if cid.startswith("UC"):
+        playlist_id = "UU" + cid[2:]
     else:
-        url = f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}"
+        playlist_id = cid
 
-    response = session.get(url, timeout=15)
-    response.raise_for_status()
-
-    root = ET.fromstring(response.content)
-    ns = {
-        'atom': 'http://www.w3.org/2005/Atom',
-        'yt': 'http://www.youtube.com/xml/schemas/2015'
-    }
-
-    video_ids = []
-    for entry in root.findall('atom:entry', ns):
-        video_id_elem = entry.find('yt:videoId', ns)
-        if video_id_elem is not None and video_id_elem.text:
-            video_ids.append(video_id_elem.text)
-
-    return video_ids[:5]
+    data = api_get("playlistItems", {
+        "part": "snippet",
+        "playlistId": playlist_id,
+        "maxResults": 3
+    })
+    
+    return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
 
 
 def get_video_details(video_ids):
-    """เช็กสถานะ Live / Video ผ่าน API Batching"""
+    """เช็กสถานะ Live / Video ผ่าน API Batching (กิน 1 Unit ต่อ 50 IDs)"""
     result = {}
     for start in range(0, len(video_ids), 50):
         batch = video_ids[start:start + 50]
@@ -114,15 +100,15 @@ def main():
     now = datetime.now(timezone.utc)
     groups, channels = config["groups"], config["channels"]
     all_video_ids, channel_videos, failed_channels = [], {}, set()
-    state_changed = False  # ตรวจจับการเปลี่ยนแปลงข้อมูลเพื่อเลี่ยงการเขียนไฟล์ซ้ำซ้อน
+    state_changed = False
 
-    # 1. Collect latest videos via RSS Feed
+    # 1. Collect latest videos via YouTube Data API
     for channel in channels:
         try:
-            ids = get_channel_videos_rss(channel["id"])
+            ids = get_channel_videos_api(channel["id"])
             channel_videos[channel["id"]] = ids
             all_video_ids.extend(ids)
-            print(f"Checked (RSS): {channel['name']} ({len(ids)} videos)")
+            print(f"Checked: {channel['name']} ({len(ids)} videos)")
         except Exception as error:
             failed_channels.add(channel["id"])
             print(f"Channel error: {channel['name']}: {error}")
@@ -140,7 +126,7 @@ def main():
         ids = channel_videos.get(channel_id, [])
         channel_state = state["channels"].get(channel_id)
 
-        # รันครั้งแรกของช่อง
+        # First run for a channel
         if channel_state is None:
             live_ids = [
                 vid for vid in ids
@@ -151,7 +137,6 @@ def main():
             print(f"Initialized: {channel['name']}")
             continue
 
-        # ใช้ list แบบเรียงลำดับเดิม ป้องกันปัญหา Git Diff เด้งสลับตำแหน่ง
         seen = list(channel_state.get("seen", []))
         live_notified = list(channel_state.get("live_notified", []))
         webhook = os.environ[groups[channel["group"]]["webhook_env"]]
@@ -176,7 +161,7 @@ def main():
             elif video_id not in seen and broadcast == "none" and live_details is None:
                 send_discord(webhook, video_id, "video", channel["group"])
 
-            # เพิ่ม ID ใหม่ถ้ายังไม่มีในประวัติ
+            # เพิ่ม ID ใหม่ต่อท้าย list
             if video_id not in seen:
                 seen.append(video_id)
                 state_changed = True
