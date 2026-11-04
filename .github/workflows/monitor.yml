@@ -25,15 +25,6 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt
 
-      # ดึง state.json จาก Cache ของรอบก่อนหน้า
-      - name: Restore State Cache
-        uses: actions/cache/restore@v4
-        with:
-          path: state.json
-          key: yt-state-${{ github.run_id }}
-          restore-keys: |
-            yt-state-
-
       - name: Run YouTube monitor
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -41,10 +32,17 @@ jobs:
           DISCORD_WEBHOOK_B: ${{ secrets.DISCORD_WEBHOOK_B }}
         run: python monitor.py
 
-      # เซฟ state.json กลับเข้า Cache สำหรับรอบถัดไป
-      - name: Save State Cache
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: state.json
-          key: yt-state-${{ github.run_id }}
+      # Push กลับเข้า Repo เฉพาะเมื่อ state.json ถูกแก้ไขจริง
+      - name: Save state to repository
+        run: |
+          git config user.name "YouTube Monitor"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add state.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Update YouTube monitor state"
+            git fetch origin main
+            git rebase origin/main
+            git push origin main
+          fi
