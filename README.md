@@ -1,8 +1,10 @@
-# YouTube Discord Monitor
+# YouTube Discord Monitor [PERSONAL]
+
+> Project นี้พัฒนาขึ้นเพื่อการใช้งานส่วนตัวเป็นหลัก หากต้องการ code template สำหรับนำไปปรับใช้หรือศึกษาต่อ ผู้พัฒนายินดีและสามารถทำได้ตามสะดวก แต่ขอแนะนำให้ใช้ code จาก Repository /youtube-discord-notifier (https://github.com/SealwingsZ/youtube-discord-notifier.git) แทน เพราะผู้พัฒนาได้ปรับ code ให้เป็นรูปแบบ default ซึ่งทำให้สะดวกต่อการแก้ไขค่าต่างๆมากกว่า พร้อมมีวิธีการใช้งาน ซึ่งเป็นรูปเดียวกันซึ่งได้แนบไว้ในไฟล์ README.md ของ Repository นั้นแล้ว
 
 ระบบแจ้งเตือนคลิปวิดีโอใหม่และการไลฟ์สดจากช่อง YouTube ไปยัง Discord โดยอัตโนมัติ ผ่าน Discord Webhook และ GitHub Actions
 
-ระบบจะตรวจสอบช่อง YouTube ที่กำหนดไว้ทุก ๆ 5 นาที โดยไม่จำเป็นต้องเปิดคอมพิวเตอร์ทิ้งไว้
+ระบบจะทำการตรวจสอบช่อง YouTube ที่กำหนดไว้ทุก ๆ 5 นาที โดยไม่จำเป็นต้องเปิดคอมพิวเตอร์ทิ้งไว้
 
 ## 🌟 ฟีเจอร์หลัก (Key Features)
 
@@ -149,9 +151,6 @@ Request Body (JSON):
 หลังจากตั้งค่าใน cron-job.org เสร็จเรียบร้อย ให้กด Save และกด Test run
 
 สามารถตรวจสอบการทำงานได้ที่แท็บ Actions ใน Repository ของคุณบน GitHub จะเห็น Workflow ตื่นขึ้นมารันโดยอัตโนมัติ และจะรันอัตโนมัติทุกๆ 5 นาที
-
-ปล. Project นี้ผู้พัฒนาสร้างขึ้นเพื่อใช้งานสำหรับความสนใจส่วนบุคคล หากคุณต้องการ code template สำหรับนำไปใช้ ผู้พัฒนายินดี แต่ขอแนะนำให้ใช้ code จาก repository 
-youtube-discord-notifier (https://github.com/SealwingsZ/youtube-discord-notifier.git) แทน เพราะผู้พัฒนาได้ปรับให้เป็นรูปแบบ default มากกว่า ทำให้สามารถแก้ไขค่าต่างๆได้สะดวกกว่า พร้อมมีวิธีใช้งาน ซึ่งรูปแบบคล้ายๆกันแนบไว้ในไฟล์ README.md
 
 ***Thank you.***
 
