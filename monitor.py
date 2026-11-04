@@ -33,16 +33,10 @@ def save_state(state):
 # -------------------------
 # YOUTUBE
 # -------------------------
-def get_upload_playlist(channel_id):
-    items = api_get("channels", {"part": "contentDetails", "id": channel_id}).get("items", [])
-    if not items:
-        raise ValueError(f"Channel not found: {channel_id}")
-    return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
-
 
 def get_channel_videos(channel):
-    playlist_id = get_upload_playlist(channel["id"])
-    data = api_get("playlistItems", {"part": "snippet", "playlistId": playlist_id, "maxResults": 10})
+    playlist_id = channel["id"].replace("UC", "UU", 1)
+    data = api_get("playlistItems", {"part": "snippet", "playlistId": playlist_id, "maxResults": 2})
     return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
 
 
