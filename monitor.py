@@ -12,7 +12,11 @@ API_KEY = os.environ["YOUTUBE_API_KEY"]
 CONFIG_FILE, STATE_FILE = "config.json", "state.json"
 BASE_URL = "https://www.googleapis.com/youtube/v3"
 
+# กำหนด Session พร้อม User-Agent ป้องกันโดน YouTube ปฏิเสธ Request
 session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
 
 def api_get(endpoint, params):
@@ -35,8 +39,15 @@ def save_state(state):
 # YOUTUBE (RSS + API)
 # -------------------------
 def get_channel_videos_rss(channel_id):
-    """ดึง 5 คลิปล่าสุดผ่าน RSS Feed (0 Quota)"""
-    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    """ดึง 5 คลิปล่าสุดผ่าน RSS Feed (รองรับทั้ง UC และ UU/PL)"""
+    cid = channel_id.strip()
+    
+    # สลับใช้ parameter ให้ถูกต้องตามประเภทของ ID
+    if cid.startswith("UU") or cid.startswith("PL"):
+        url = f"https://www.youtube.com/feeds/videos.xml?playlist_id={cid}"
+    else:
+        url = f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}"
+
     response = session.get(url, timeout=15)
     response.raise_for_status()
 
@@ -51,7 +62,7 @@ def get_channel_videos_rss(channel_id):
         video_id_elem = entry.find('yt:videoId', ns)
         if video_id_elem is not None and video_id_elem.text:
             video_ids.append(video_id_elem.text)
-            
+
     return video_ids[:5]
 
 
@@ -98,11 +109,12 @@ def send_discord(webhook, video_id, event_type, group):
 # -------------------------
 def main():
     config = load_json(CONFIG_FILE, {})
-    state = load_json(STATE_FILE, {"channels": {}})
+    state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
 
+    now = datetime.now(timezone.utc)
     groups, channels = config["groups"], config["channels"]
     all_video_ids, channel_videos, failed_channels = [], {}, set()
-    state_changed = False  # ตัวแปรเช็กว่ามีการอัปเดตข้อมูลใหม่หรือไม่
+    state_changed = False  # ตรวจจับการเปลี่ยนแปลงข้อมูลเพื่อเลี่ยงการเขียนไฟล์ซ้ำซ้อน
 
     # 1. Collect latest videos via RSS Feed
     for channel in channels:
@@ -128,7 +140,7 @@ def main():
         ids = channel_videos.get(channel_id, [])
         channel_state = state["channels"].get(channel_id)
 
-        # รันครั้งแรกของช่อง ให้บันทึกข้อมูลตั้งต้น
+        # รันครั้งแรกของช่อง
         if channel_state is None:
             live_ids = [
                 vid for vid in ids
@@ -139,9 +151,9 @@ def main():
             print(f"Initialized: {channel['name']}")
             continue
 
-        # ดึงลิสต์เดิม (รักษาลำดับเดิมเพื่อ Append ต่อท้ายอย่างเดียว)
-        seen = channel_state.get("seen", [])
-        live_notified = channel_state.get("live_notified", [])
+        # ใช้ list แบบเรียงลำดับเดิม ป้องกันปัญหา Git Diff เด้งสลับตำแหน่ง
+        seen = list(channel_state.get("seen", []))
+        live_notified = list(channel_state.get("live_notified", []))
         webhook = os.environ[groups[channel["group"]]["webhook_env"]]
 
         for video_id in ids:
@@ -164,7 +176,7 @@ def main():
             elif video_id not in seen and broadcast == "none" and live_details is None:
                 send_discord(webhook, video_id, "video", channel["group"])
 
-            # เพิ่ม ID ใหม่ต่อท้าย list
+            # เพิ่ม ID ใหม่ถ้ายังไม่มีในประวัติ
             if video_id not in seen:
                 seen.append(video_id)
                 state_changed = True
@@ -172,12 +184,13 @@ def main():
         channel_state["seen"] = seen[-100:]
         channel_state["live_notified"] = live_notified[-100:]
 
-    # 4. บันทึกไฟล์ state.json เฉพาะเมื่อมีข้อมูลใหม่เกิดขึ้นจริง
+    # 4. Save state เฉพาะเมื่อมีการเปลี่ยนแปลงจริง
     if state_changed:
+        state["last_run"] = now.isoformat()
         save_state(state)
         print("State updated and saved.")
     else:
-        print("No new videos or state changes. Skipping state save.")
+        print("No new updates. Skipping state save.")
 
     if failed_channels:
         print("Some channels failed. Retrying next run.")
