@@ -73,7 +73,7 @@
 
 ```text
 ขั้นตอนการเก็บ API Key:
-1) เข้าไปที่ [Google Cloud Console](https://console.cloud.google.com/)
+1) เข้าไปที่ Google Cloud Console (https://console.cloud.google.com/)
 2) สร้าง Project ใหม่ หรือเลือก Project ที่มีอยู่
 3) เปิดใช้งาน **YouTube Data API v3**
 4) สร้าง API Key
@@ -99,7 +99,7 @@
 เนื่องจากระบบเน้นความเสถียรและตรงเวลา จึงใช้บริการ External Cron (เช่น cron-job.org) ยิงมาที่ GitHub Actions ทุกๆ 5 นาที:
 
 ```text
-1) เข้าไปที่ [cron-job](https://console.cron-job.org/)
+1) เข้าไปที่ cron-job (https://console.cron-job.org/)
 2) สร้าง cronjob จากนั้นใส่รายละเอียดดังนี้
 
 
@@ -126,7 +126,8 @@ Add permissions > Actions > Read and write > Generate token เมื่อส�
 
 วิธีที่ 2: Classic Token (ตั้งค่าง่าย ไม่ติดสิทธิ์ย่อย)
 1) เข้าไปใน Settings ของ GitHub
-2) Developer Settings > Personal access tokens > Tokens(classic) > Generate new token > Generate new token(classic) เมื่อสร้างแล้ว ทำการคัดลอกรหัส (ขึ้นต้นด้วย ghp_...) นำไปใส่ใน Header Authorization: Bearer [token]
+2) Developer Settings > Personal access tokens > Tokens(classic) > Generate new token > Generate new token(classic) > ติ๊กถูกช่อง repo > Generate token
+เมื่อสร้างแล้ว ทำการคัดลอกรหัส (ขึ้นต้นด้วย ghp_...) นำไปใส่ใน Header Authorization: Bearer [token]
 
 [2] Accept: application/vnd.github.v3+json
 
