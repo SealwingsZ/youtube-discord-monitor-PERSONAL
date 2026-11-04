@@ -4,172 +4,176 @@
 
 ระบบจะตรวจสอบช่อง YouTube ที่กำหนดไว้ทุก ๆ 5 นาที โดยไม่จำเป็นต้องเปิดคอมพิวเตอร์ทิ้งไว้
 
-## ✨ ความสามารถของระบบ
+## 🌟 ฟีเจอร์หลัก (Key Features)
 
-- ตรวจสอบคลิปวิดีโอใหม่จากช่อง YouTube ที่กำหนด
-- ตรวจสอบการไลฟ์สด (Live) และแจ้งเตือนเมื่อเริ่มไลฟ์
-- รองรับ YouTube Shorts
-- สามารถเพิ่มช่อง YouTube ได้หลายช่อง
-- แบ่งกลุ่มช่อง YouTube เพื่อส่งการแจ้งเตือนไปยัง Discord คนละห้องได้
-- ทำงานอัตโนมัติผ่าน GitHub Actions ทุก 5 นาที
-- บันทึกประวัติคลิปที่เคยตรวจสอบแล้ว เพื่อป้องกันการแจ้งเตือนซ้ำ
+- ⚡ **Quota Optimized:** ปรับมาใช้ `playlistItems` API (`UU...`) ร่วมกับเทคนิค Batching 50 คลิป/Request ทำให้รองรับ 30+ ช่องโดยใช้โควต้าเพียง ~8,900 / 10,000 Units ต่อวัน
+- ⏱️ **Discord Dynamic Timestamps:** แสดงเวลาที่คลิป/ไลฟ์ถูกเผยแพร่จริงบน YouTube แบบเรียลไทม์ ด้วยโครงสร้าง `<t:UNIX:R>` (เช่น *3 minutes ago*)
+- 🧹 **Clean Git History:** ระบบจะทำการ `git commit` และ `git push` อัปเดตไฟล์ `state.json` เฉพาะเมื่อพบคลิป/ไลฟ์ใหม่จริงๆ เท่านั้น หมดปัญหาสปัม Commit ทุก 5 นาที
+- 📦 **State Auto-Trim:** จำกัดประวัติการบันทึกคลิปย้อนหลังสูงสุด 10 คลิปล่าสุดต่อช่อง เพื่อป้องกันไม่ให้ไฟล์ `state.json` สะสมขนาดใหญ่เกินไป
+- ☁️ **Serverless 100%:** ทำงานบน Cloud ของ GitHub Actions และรับสัญญาณ Trigger จาก External Cron (เช่น `cron-job.org`) โดยไม่ต้องเปิดคอมพิวเตอร์ทิ้งไว้
 
-## 📁 ไฟล์สำคัญ
+---
 
-| ไฟล์ | หน้าที่ |
-|---|---|
-| `monitor.py` | โค้ดหลักสำหรับตรวจสอบ YouTube และส่งแจ้งเตือน |
-| `config.json` | ตั้งค่าช่อง YouTube และกลุ่ม Discord |
-| `state.json` | เก็บประวัติคลิปและสถานะการแจ้งเตือน |
-| `requirements.txt` | รายการ Python Libraries ที่จำเป็น |
-| `.github/workflows/` | ตั้งค่าการทำงานอัตโนมัติของ GitHub Actions |
+## 📁 โครงสร้างโปรเจกต์ (Project Structure)
 
-## ⚙️ วิธีติดตั้งและตั้งค่า
+```text
+├── .github/
+│   └── workflows/
+│       └── monitor.yml       # ตั้งค่าการรันสคริปต์บน GitHub Actions
+├── config.json               # รายชื่อช่อง YouTube และการจัดกลุ่ม Webhook
+├── state.json                # บันทึก ID คลิปที่เคยแจ้งเตือนแล้ว (จัดการอัตโนมัติ)
+├── monitor.py                # สคริปต์หลักในการดึง API และส่งข้อความเข้า Discord
+└── README.md                 # เอกสารอธิบายโปรเจกต์
+```
 
-### 1. เตรียมสิ่งที่จำเป็น
+⚙️ โครงสร้างไฟล์คีย์หลัก (Configuration)
 
-- GitHub Account
-- YouTube Data API v3 API Key
-- Discord Webhook URL
-- Repository สำหรับเก็บโปรเจกต์นี้
-
-### 2. ตั้งค่า YouTube API
-
-1. เข้าไปที่ [Google Cloud Console](https://console.cloud.google.com/)
-2. สร้าง Project ใหม่ หรือเลือก Project ที่มีอยู่
-3. เปิดใช้งาน **YouTube Data API v3**
-4. สร้าง API Key
-5. คัดลอก API Key เก็บไว้
-
-### 3. สร้าง Discord Webhook
-
-ทำตามขั้นตอนนี้ใน Discord:
-
-1. เข้าไปที่ Server ที่ต้องการรับการแจ้งเตือน
-2. เลือกห้องข้อความที่ต้องการ
-3. เข้าไปที่ Edit Channel
-4. เลือก Integrations
-5. เลือก Webhooks
-6. กด New Webhook
-7. คัดลอก Webhook URL เก็บไว้
-
-หากต้องการแยกการแจ้งเตือนเป็น 2 กลุ่ม ให้สร้าง Webhook สำหรับแต่ละห้อง
-
-### 4. ตั้งค่า GitHub Secrets
-
-เข้าไปที่ Repository บน GitHub แล้วเลือก:
-
-`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
-
-เพิ่ม Secrets ทั้ง 3 รายการดังนี้:
-
-| Secret Name | Value |
-|---|---|
-| `YOUTUBE_API_KEY` | YouTube API Key |
-| `DISCORD_WEBHOOK_A` | Discord Webhook ของกลุ่ม A |
-| `DISCORD_WEBHOOK_B` | Discord Webhook ของกลุ่ม B |
-
-**หมายเหตุ:** ห้ามนำ API Key หรือ Webhook URL ไปใส่ไว้ในไฟล์โค้ดที่เป็นสาธารณะ
-
-## 📝 การเพิ่มช่อง YouTube
-
-เปิดไฟล์ `config.json` แล้วแก้ไขข้อมูลช่อง YouTube ที่ต้องการติดตาม
-
-ตัวอย่าง:
+1. config.json
+ใช้กำหนดกลุ่ม Webhook และตั้งค่า channel_id ของ YouTube ที่ต้องการติดตาม:
 
 ```json
 {
-  "check_interval_minutes": 5,
   "groups": {
     "A": {
-      "webhook_env": "DISCORD_WEBHOOK_A"
+      "webhook_env": "DISCORD_WEBHOOK_GROUP_A"
     },
     "B": {
-      "webhook_env": "DISCORD_WEBHOOK_B"
+      "webhook_env": "DISCORD_WEBHOOK_GROUP_B"
     }
   },
   "channels": [
     {
-      "name": "Channel 1",
-      "id": "YOUR_CHANNEL_ID_1",
+      "name": "Channel Name A",
+      "id": "UCxxxxxxxxxxxxxxxxxxxxxx",
       "group": "A"
     },
     {
-      "name": "Channel 2",
-      "id": "YOUR_CHANNEL_ID_2",
+      "name": "Channel Name B",
+      "id": "UCyyyyyyyyyyyyyyyyyyyyyy",
       "group": "B"
     }
   ]
 }
 ```
 
-วิธีเพิ่มช่องใหม่:
-
-1. คัดลอก Channel ID จากช่อง YouTube ที่ต้องการติดตาม
-->โดยเข้าไปที่หน้า Youtube Channel จากนั้นคลิ๊กขวา แล้วกด View page source แล้วกด Ctrl+F จากนั้นป้อน channel_id แล้ว copy ส่วนที่ขึ้นต้นด้วย UR มาใช้ (ปล.อาจมีวิธีดีหรือง่ายกว่านี้ แต่แบบนี้ชัดเจนดี อิอิ)
-2. เพิ่มข้อมูลช่องลงในส่วน `channels`
-3. กำหนด `name` ตามใจฉัน
-4. กำหนด `id` เป็น Channel ID
-5. กำหนด `group` เป็น `A` หรือ `B` หรืออื่นๆตามห้อง Discord ที่ต้องการรับแจ้งเตือน
-
-ตัวอย่าง:
+2. state.json
+ไฟล์บันทึกสถานะเริ่มต้น (สร้างไว้ที่ Root ของโปรเจกต์):
 
 ```json
 {
-  "name": "Example Channel",
-  "id": "UCxxxxxxxxxxxxxxxx",
-  "group": "A"
+  "channels": {}
 }
 ```
 
-## 🚀 วิธีเริ่มใช้งาน
+🚀 ขั้นตอนการตั้งค่าระบบ (Setup Guide)
+1. ตั้งค่า GitHub Repository Secrets
+ไปที่ Settings > Secrets and variables > Actions บน GitHub แล้วเพิ่ม Secrets ดังนี้ *[1], [2], [3]*:
 
-1. ตรวจสอบว่าได้ตั้งค่า GitHub Secrets และ `config.json` เรียบร้อยแล้ว
-2. เข้าไปที่ Repository บน GitHub
-3. เลือกแท็บ **Actions**
-4. เลือก Workflow ชื่อ **YouTube Discord Monitor**
-5. กด **Run workflow** เพื่อทดสอบการทำงาน
+*[1]* YOUTUBE_API_KEY: API Key จาก Google Cloud Console (เปิดใช้งาน YouTube Data API v3)
 
-เมื่อเริ่มทำงานครั้งแรก ระบบจะบันทึกคลิปล่าสุดของแต่ละช่องไว้เป็นประวัติ โดยจะไม่ส่งแจ้งเตือนคลิปเก่าที่มีอยู่ก่อนแล้ว
-
-หลังจากนั้นระบบจะตรวจสอบคลิปใหม่และ Live โดยอัตโนมัติทุก ๆ 5 นาที
-
-## 🔔 รูปแบบการแจ้งเตือน(ของฉันเองจ้า)
-
-**เมื่อมีคลิปใหม่**
-
-FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!
-
-ตามด้วยลิงก์ YouTube ของคลิป
-
-**เมื่อมีการไลฟ์สด**
-
-NO WAY?? Unstable SMP MEMBER IS LIVE!!
-
-ตามด้วยลิงก์ YouTube ของ Live
-
-## 📌 การทำงานของระบบ
-
-- GitHub Actions จะเรียกใช้งาน `monitor.py` ทุก ๆ 5 นาที
-- ระบบใช้ YouTube Data API v3 เพื่อตรวจสอบข้อมูลช่องและวิดีโอ
-- เมื่อพบคลิปใหม่หรือ Live ระบบจะส่งข้อความไปยัง Discord Webhook ตามกลุ่มที่กำหนด
-- ระบบบันทึกประวัติลงใน `state.json`
-- GitHub Actions จะอัปเดต `state.json` กลับไปยัง Repository เพื่อเก็บสถานะการตรวจสอบครั้งล่าสุด
-
-## 🛠️ การแก้ไขและอัปเดตโปรเจกต์
-
-หากต้องการแก้ไขโค้ดหรือเพิ่มช่อง YouTube สามารถทำผ่าน GitHub Codespaces ได้
-
-หลังจากแก้ไขเสร็จแล้ว ใช้คำสั่ง:
-
-```bash
-git add .
-git commit -m "update monitor"
-git push origin main
+```text
+ขั้นตอนการเก็บ API Key:
+1) เข้าไปที่ [Google Cloud Console](https://console.cloud.google.com/)
+2) สร้าง Project ใหม่ หรือเลือก Project ที่มีอยู่
+3) เปิดใช้งาน **YouTube Data API v3**
+4) สร้าง API Key
+5) คัดลอก API Key เก็บไว้
 ```
 
-เมื่อ Push สำเร็จ GitHub จะบันทึกการเปลี่ยนแปลง และระบบจะใช้โค้ดเวอร์ชันใหม่ในการทำงานครั้งถัดไป
+*[2]* DISCORD_WEBHOOK_GROUP_A: URL ของ Discord Webhook สำหรับกลุ่ม A
 
----
+*[3]* DISCORD_WEBHOOK_GROUP_B: URL ของ Discord Webhook สำหรับกลุ่ม B (ถ้ามี)
 
-**หมายเหตุ:** หากต้องการให้ระบบทำงานได้อย่างต่อเนื่อง ต้องเปิดใช้งาน GitHub Actions และตรวจสอบว่า API Key กับ Discord Webhook ยังใช้งานได้ตามปกติ
+```text
+ขั้นตอนการเก็บ URL ของ Discord Webhook:
+1) เข้าไปที่ Server ที่ต้องการรับการแจ้งเตือน
+2) เลือกห้องข้อความที่ต้องการ
+3) เข้าไปที่ Edit Channel
+4) เลือก Integrations
+5) เลือก Webhooks
+6) กด New Webhook
+7) คัดลอก Webhook URL เก็บไว้
+```
+
+2. ตั้งค่า External Cron Trigger
+เนื่องจากระบบเน้นความเสถียรและตรงเวลา จึงใช้บริการ External Cron (เช่น cron-job.org) ยิงมาที่ GitHub Actions ทุกๆ 5 นาที:
+
+```text
+1) เข้าไปที่ [cron-job](https://console.cron-job.org/)
+2) สร้าง cronjob จากนั้นใส่รายละเอียดดังนี้
+
+
+ส่วน COMMON:
+
+URL: https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/dispatches
+
+เปลี่ยน YOUR_USERNAME/YOUR_REPO เป็นของตัวเอง
+
+Execution schedule: ตั้งเวลาการทำงานอัตโนมัติ
+
+
+ส่วน ADVANCED:
+
+Headers [1], [2], [3]:
+
+[1] Authorization: Bearer (Personal Access Token)
+
+ขั้นตอนการสร้าง Personal Access Token (PAT): 
+วิธีที่ 1: Fine-grained Token (แนะนำสำหรับความปลอดภัยสูงสุด)
+1) เข้าไปใน Settings ของ GitHub
+2) Developer Settings > Personal access tokens > Fine-grained tokens แล้วสร้าง token
+Add permissions > Actions > Read and write > Generate token เมื่อสร้างแล้ว ทำการคัดลอกรหัส (ขึ้นต้นด้วย github_pat_...) แล้วนำไปใส่ใน Header Authorization: Bearer [token]
+
+วิธีที่ 2: Classic Token (ตั้งค่าง่าย ไม่ติดสิทธิ์ย่อย)
+1) เข้าไปใน Settings ของ GitHub
+2) Developer Settings > Personal access tokens > Tokens(classic) > Generate new token > Generate new token(classic) เมื่อสร้างแล้ว ทำการคัดลอกรหัส (ขึ้นต้นด้วย ghp_...) นำไปใส่ใน Header Authorization: Bearer [token]
+
+[2] Accept: application/vnd.github.v3+json
+
+[3] User-Agent: cron-job.org (หรือ cron-job-bot)
+
+Request method: POST
+
+Request Body (JSON):
+
+{
+  "event_type": "cron_trigger"
+}
+```
+
+---------------------------
+#🧪 การทดสอบระบบ (Test Run)
+
+หลังจากตั้งค่าใน cron-job.org เสร็จเรียบร้อย ให้กด Save และกด Test run
+
+สามารถตรวจสอบการทำงานได้ที่แท็บ Actions ใน Repository ของคุณบน GitHub จะเห็น Workflow ตื่นขึ้นมารันโดยอัตโนมัติ และจะรันอัตโนมัติทุกๆ 5 นาที
+
+****Disclamer: This project was developed with the assistance of AI.****
+
+ปล. Project นี้ผู้พัฒนาสร้างขึ้นเพื่อใช้งานสำหรับความสนใจส่วนบุคคล หากคุณต้องการ code template สำหรับนำไปใช้ ผู้พัฒนายินดี แต่ขอแนะนำให้ใช้ code จาก repository ... แทน เพราะผู้พัฒนาได้ปรับให้เป็นรูปแบบ default มากกว่า ทำให้สามารถแก้ไขค่าต่างๆได้สะดวกกว่า พร้อมมีวิธีใช้งาน ซึ่งรูปแบบคล้ายๆ กันระบุในไฟล์ README.md ของ repository นั้น
+
+***Thank you.***
+
+---------------------------
+
+*Q&A (Which I ask myself)*
+
+```
+Q1: ทำไมต้องการให้บอทแจ้งเตือนใน Discord ด้วย? ทั้งๆที่ใน Youtube เองก็มีระบบแจ้งเตือนเมื่อมีการลงคลิปใหม่
+A1: 1. คุณสามารถได้รับการแจ้งเตือนจากช่องต่างบน Youtube แม้คุณไม่ได้ทำการติดตามไว้ หรือในกรณีที่คุณไม่ได้เข้าสู่ระบบบัญชี Youtube ของคุณบนอุปกรณ์ คุณก็จะสามารถได้รับการแจ้งเตือนโดยตรงผ่าน Discord server ของคุณได้
+    2. คุณสามารถแบ่งกลุ่มการแจ้งเตือนได้อย่างอิสระ โดยสามารถเลือกช่องบน Youtube และแยกให้มีการแจ้งเตือนในแต่ละแชนแนลบน Discord server ของคุณได้ เช่น ช่อง A,B,C ทำคลิปเกี่ยวกับอาหาร ส่วนช่อง D,E,F ทำคลิปเกี่ยวกับการพัฒนาตนเอง คุณก็สามารถตั้งค่าให้เมื่อช่อง A,B,C ลงคลิปใหม่ บอทจะทำการส่งการแจ้งเตือนทาง Discord ไปยังแชนแนลเกี่ยวกับการทำอาหาร หรืออื่นๆ ตามที่คุณต้องการได้ รวมถึงสามารถใช้เป็นช่องทางการอัพเดตเพื่อพูดคุยเกี่ยวกับคลิปใหม่กับเพื่อนของคุณบน Discord server ได้
+
+Q2: มันน่าจะมีวิธีที่ดีและประสิทธิภาพสูงกว่านี้รึเปล่า? ทำไมดูใช้อะไรมั่วๆจัง
+A2: มีวิธีที่ดีและประสิทธิภาพสูงกว่าแน่นอน แต่ตัวผู้พัฒนาสร้าง Project นี้ขึ้นมาเพื่อความสนุก, เป็นประสบการณ์ และเพื่อตอบสนองความต้องการส่วนตัวของผู้พัฒนาเท่านั้น และเป้าหมายคือสามารถใช้งานได้ จึงไม่ได้มีการสืบค้นหาวิธีหรือเครื่องมือที่ดีกว่าอย่างจริงจัง
+
+Q3: ทำไ-
+A3: ตามตรงแล้ว ผู้พัฒนาต้องการให้ Project นี้เป็นรูปแบบ Private แต่เนื่องจากการใช้ cron-job.org สำหรับการตรวจสอบอัตโนมัติทุกๆ 5 นาที ทำให้ผู้พัฒนาต้องตั้งค่า Project นี้เป็นรูปแบบ Public
+
+Q4: แล้วทำไมไม่หาวิธีอื่นที่ไม่ต้องตั้ง Project เป็น Public?
+A4: A2
+```
+
+```
+Devoloper
+- SealwingsZ
+```

@@ -5,7 +5,6 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
-# เพิ่มบรรทัดนี้เพื่อให้ Bot มีสิทธิ์ Push โค้ดลง Repo
 permissions:
   contents: write
 

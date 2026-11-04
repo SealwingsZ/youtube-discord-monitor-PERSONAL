@@ -75,7 +75,7 @@ def send_discord(webhook, video_id, event_type, group, event_time_iso=None):
         if event_type == "live":
             message = f"NO WAY?? Unstable SMP MEMBER IS LIVE!!{time_tag}\n\n{video_url}"
         else:
-            message = f"FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!{time_tag}\n\n{video_url}"
+            message = f"FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!{time_tag}\n\n{video_url}"
     elif group == "B":
         if event_type == "live":
             message = f"🔴 LIVE NOW!{time_tag}\n\n{video_url}"
