@@ -5,6 +5,10 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+# เพิ่มบรรทัดนี้เพื่อให้ Bot มีสิทธิ์ Push โค้ดลง Repo
+permissions:
+  contents: write
+
 concurrency:
   group: youtube-monitor
   cancel-in-progress: false
@@ -32,7 +36,6 @@ jobs:
           DISCORD_WEBHOOK_B: ${{ secrets.DISCORD_WEBHOOK_B }}
         run: python monitor.py
 
-      # Push กลับเข้า Repo เฉพาะเมื่อ state.json ถูกแก้ไขจริง
       - name: Save state to repository
         run: |
           git config user.name "YouTube Monitor"
