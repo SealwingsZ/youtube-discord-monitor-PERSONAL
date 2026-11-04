@@ -1,7 +1,8 @@
 import os
 import json
 import requests
-from datetime import datetime, timezone, timedelta
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from pathlib import Path
 
 # -------------------------
@@ -31,16 +32,31 @@ def save_state(state):
 
 
 # -------------------------
-# YOUTUBE
+# YOUTUBE (RSS + API)
 # -------------------------
+def get_channel_videos_rss(channel_id):
+    """ดึง 5 คลิปล่าสุดผ่าน RSS Feed (0 Quota)"""
+    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    response = session.get(url, timeout=15)
+    response.raise_for_status()
 
-def get_channel_videos(channel):
-    playlist_id = channel["id"].replace("UC", "UU", 1)
-    data = api_get("playlistItems", {"part": "snippet", "playlistId": playlist_id, "maxResults": 2})
-    return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
+    root = ET.fromstring(response.content)
+    ns = {
+        'atom': 'http://www.w3.org/2005/Atom',
+        'yt': 'http://www.youtube.com/xml/schemas/2015'
+    }
+
+    video_ids = []
+    for entry in root.findall('atom:entry', ns):
+        video_id_elem = entry.find('yt:videoId', ns)
+        if video_id_elem is not None and video_id_elem.text:
+            video_ids.append(video_id_elem.text)
+            
+    return video_ids[:5]
 
 
 def get_video_details(video_ids):
+    """เช็กสถานะ Live / Video ผ่าน API Batching"""
     result = {}
     for start in range(0, len(video_ids), 50):
         batch = video_ids[start:start + 50]
@@ -57,31 +73,16 @@ def get_video_details(video_ids):
 def send_discord(webhook, video_id, event_type, group):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    # Group A notification
     if group == "A":
         if event_type == "live":
-            message = (
-                "NO WAY?? Unstable SMP MEMBER IS LIVE!!\n\n"
-                f"{video_url}"
-            )
+            message = f"NO WAY?? Unstable SMP MEMBER IS LIVE!!\n\n{video_url}"
         else:
-            message = (
-                "FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!\n\n"
-                f"{video_url}"
-            )
-
-    # Group B notification
+            message = f"FEDDING TIME🍗🍗 Unstable SMP NEW VIDEO!!\n\n{video_url}"
     elif group == "B":
         if event_type == "live":
-            message = (
-                "🔴 LIVE NOW!\n\n"
-                f"{video_url}"
-            )
+            message = f"🔴 LIVE NOW!\n\n{video_url}"
         else:
-            message = (
-                "🚨 NEW VIDEO ALERT 🚨\n\n"
-                f"{video_url}"
-            )
+            message = f"🚨 NEW VIDEO ALERT 🚨\n\n{video_url}"
 
     payload = {
         "content": message,
@@ -89,9 +90,7 @@ def send_discord(webhook, video_id, event_type, group):
     }
 
     requests.post(webhook, json=payload, timeout=15).raise_for_status()
-
     print(f"Sent {event_type} notification to Group {group}: {video_id}")
-
 
 
 # -------------------------
@@ -99,31 +98,26 @@ def send_discord(webhook, video_id, event_type, group):
 # -------------------------
 def main():
     config = load_json(CONFIG_FILE, {})
-    state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
-
-    interval = config.get("check_interval_minutes", 5)
-    now = datetime.now(timezone.utc)
-
-    if state.get("last_run") and now - datetime.fromisoformat(state["last_run"]) < timedelta(minutes=interval):
-        print("Not time to check yet")
-        return
+    state = load_json(STATE_FILE, {"channels": {}})
 
     groups, channels = config["groups"], config["channels"]
     all_video_ids, channel_videos, failed_channels = [], {}, set()
+    state_changed = False  # ตัวแปรเช็กว่ามีการอัปเดตข้อมูลใหม่หรือไม่
 
-    # 1. Collect latest videos from all channels
+    # 1. Collect latest videos via RSS Feed
     for channel in channels:
         try:
-            ids = get_channel_videos(channel)
+            ids = get_channel_videos_rss(channel["id"])
             channel_videos[channel["id"]] = ids
             all_video_ids.extend(ids)
-            print(f"Checked: {channel['name']} ({len(ids)} videos)")
+            print(f"Checked (RSS): {channel['name']} ({len(ids)} videos)")
         except Exception as error:
             failed_channels.add(channel["id"])
             print(f"Channel error: {channel['name']}: {error}")
 
-    # 2. Get video and live information
-    details = get_video_details(list(dict.fromkeys(all_video_ids)))
+    # 2. Get video and live details
+    unique_ids = list(dict.fromkeys(all_video_ids))
+    details = get_video_details(unique_ids) if unique_ids else {}
 
     # 3. Process each channel
     for channel in channels:
@@ -134,18 +128,20 @@ def main():
         ids = channel_videos.get(channel_id, [])
         channel_state = state["channels"].get(channel_id)
 
-        # First run for a channel
+        # รันครั้งแรกของช่อง ให้บันทึกข้อมูลตั้งต้น
         if channel_state is None:
             live_ids = [
                 vid for vid in ids
                 if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
             ]
             state["channels"][channel_id] = {"seen": ids, "live_notified": live_ids}
+            state_changed = True
             print(f"Initialized: {channel['name']}")
             continue
 
-        seen = set(channel_state.get("seen", []))
-        live_notified = set(channel_state.get("live_notified", []))
+        # ดึงลิสต์เดิม (รักษาลำดับเดิมเพื่อ Append ต่อท้ายอย่างเดียว)
+        seen = channel_state.get("seen", [])
+        live_notified = channel_state.get("live_notified", [])
         webhook = os.environ[groups[channel["group"]]["webhook_env"]]
 
         for video_id in ids:
@@ -157,24 +153,31 @@ def main():
             broadcast = snippet.get("liveBroadcastContent", "none")
             live_details = video.get("liveStreamingDetails")
 
+            # เช็กและแจ้งเตือน LIVE
             if broadcast == "live":
                 if video_id not in live_notified:
                     send_discord(webhook, video_id, "live", channel["group"])
-                    live_notified.add(video_id)
+                    live_notified.append(video_id)
+                    state_changed = True
 
+            # เช็กและแจ้งเตือนคลิปใหม่
             elif video_id not in seen and broadcast == "none" and live_details is None:
                 send_discord(webhook, video_id, "video", channel["group"])
 
-            seen.add(video_id)
+            # เพิ่ม ID ใหม่ต่อท้าย list
+            if video_id not in seen:
+                seen.append(video_id)
+                state_changed = True
 
-        channel_state["seen"] = list(seen)[-100:]
-        channel_state["live_notified"] = list(live_notified)[-100:]
+        channel_state["seen"] = seen[-100:]
+        channel_state["live_notified"] = live_notified[-100:]
 
-    # 4. Save state
-    if not failed_channels:
-        state["last_run"] = now.isoformat()
-
-    save_state(state)
+    # 4. บันทึกไฟล์ state.json เฉพาะเมื่อมีข้อมูลใหม่เกิดขึ้นจริง
+    if state_changed:
+        save_state(state)
+        print("State updated and saved.")
+    else:
+        print("No new videos or state changes. Skipping state save.")
 
     if failed_channels:
         print("Some channels failed. Retrying next run.")
