@@ -125,8 +125,8 @@ def handle_error(state, error_msg, webhook):
         payload = {
             "content": (
                 f"> **[🚨System Alert🚨 YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
-                f">\n"
-                f"> > 💥 **Issue Found:**\n"
+                f"\n"
+                f"> 💥 **Issue Found:**\n"
                 f"> > `{error_msg}`"
             ),
             "allowed_mentions": {"parse": []}
@@ -152,8 +152,8 @@ def send_recovery_alert(webhook, last_error):
     payload = {
         "content": (
             f"> **[✅System Status✅] YouTube Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
-            f">\n"
-            f"> > 🛠️ **Resolved Issue:**\n"
+            f"\n"
+            f"> 🛠️ **Resolved Issue:**\n"
             f"> > `{last_error}`"
         ),
         "allowed_mentions": {"parse": []}
@@ -280,7 +280,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        raise RuntimeError("ทดสอบระบบขัดข้องกะทันหันอีกสักรอบ")
+        raise RuntimeError("เป็น OCD รึไงฟะ")
         # สรุปสถานะช่องและ Route
         generate_channel_summary(channels, groups, state)
 
