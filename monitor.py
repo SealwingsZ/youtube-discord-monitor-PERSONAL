@@ -126,8 +126,8 @@ def handle_error(state, error_msg, webhook):
             "content": (
                 f"> **[🚨System Alert🚨 YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
                 f"\n"
-                f"> 💥 **Issue Found:**\n"
-                f">`{error_msg}`"
+                f"💥 **Issue Found:**\n"
+                f"`{error_msg}`"
             ),
             "allowed_mentions": {"parse": []}
         }
@@ -153,8 +153,8 @@ def send_recovery_alert(webhook, last_error):
         "content": (
             f"> **[✅System Status✅] YouTube Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
             f"\n"
-            f"> 🛠️ **Resolved Issue:**\n"
-            f">`{last_error}`"
+            f"🛠️ **Resolved Issue:**\n"
+            f"`{last_error}`"
         ),
         "allowed_mentions": {"parse": []}
     }
@@ -280,7 +280,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        raise RuntimeError("ตายงี้ commit เอาๆ แก้ทีบรรทัดเดียว")
+        raise RuntimeError("ท้อ")
         # สรุปสถานะช่องและ Route
         generate_channel_summary(channels, groups, state)
 
