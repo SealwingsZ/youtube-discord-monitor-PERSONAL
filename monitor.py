@@ -234,7 +234,6 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
 # MAIN MONITOR
 # -------------------------
 def main():
-    raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!")
     config = load_json(CONFIG_FILE, {})
     state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
 
@@ -242,26 +241,24 @@ def main():
     groups = config.get("groups", {})
     channels = config.get("channels", [])
 
-    # Webhook สำหรับส่งแจ้งเตือน Error
+    # ดึง Webhook สำหรับยิงแจ้งเตือน Error
     default_webhook = None
     if groups:
         first_group = list(groups.values())[0]
         default_webhook = os.environ.get(first_group.get("webhook_env", ""))
 
-    # สรุปสถานะช่องและ Route
-    generate_channel_summary(channels, groups, state)
-
-    if not API_KEY:
-        error_msg = "YOUTUBE_API_KEY is missing from environment variables."
-        print(f"Error: {error_msg}")
-        handle_error(state, error_msg, default_webhook)
-        return
-
-    all_video_ids, channel_videos, failed_channels = [], {}, set()
-    state_changed = False
-
-    # 1. Collect latest videos
+    # ครอบ try...except ใหญ่สุดเพื่อดักทุก Error ที่เกิดขึ้นในระบบ
     try:
+        # สรุปสถานะช่องและ Route
+        generate_channel_summary(channels, groups, state)
+
+        if not API_KEY:
+            raise RuntimeError("YOUTUBE_API_KEY is missing from environment variables.")
+
+        all_video_ids, channel_videos, failed_channels = [], {}, set()
+        state_changed = False
+
+        # 1. Collect latest videos
         for channel in channels:
             try:
                 ids = get_channel_videos_api(channel["id"])
@@ -273,100 +270,97 @@ def main():
                 print(f"Channel error: {channel.get('name', channel['id'])}: {error}")
                 if "Quota" in str(error):
                     raise error
-    except Exception as e:
-        handle_error(state, str(e), default_webhook)
-        return
 
-    # 2. Get video and live details
-    unique_ids = list(dict.fromkeys(all_video_ids))
-    try:
+        # 2. Get video and live details
+        unique_ids = list(dict.fromkeys(all_video_ids))
         details = get_video_details(unique_ids) if unique_ids else {}
-    except Exception as e:
-        handle_error(state, str(e), default_webhook)
-        return
 
-    # 3. Process each channel
-    for channel in channels:
-        channel_id = channel["id"]
-        channel_name = channel.get("name", "Unknown Channel")
-        if channel_id in failed_channels:
-            continue
-
-        ids = channel_videos.get(channel_id, [])
-        channel_state = state.get("channels", {}).get(channel_id)
-
-        # First run for a channel
-        if channel_state is None:
-            live_ids = [
-                vid for vid in ids
-                if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
-            ]
-            state.setdefault("channels", {})[channel_id] = {"seen": ids, "live_notified": live_ids}
-            state_changed = True
-            print(f"Initialized: {channel_name}")
-            continue
-
-        seen = list(channel_state.get("seen", []))
-        live_notified = list(channel_state.get("live_notified", []))
-        
-        webhook_env_key = groups.get(channel["group"], {}).get("webhook_env", "")
-        webhook = os.environ.get(webhook_env_key)
-
-        if not webhook:
-            print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
-            continue
-
-        for video_id in ids:
-            video = details.get(video_id)
-            if video is None:
+        # 3. Process each channel
+        for channel in channels:
+            channel_id = channel["id"]
+            channel_name = channel.get("name", "Unknown Channel")
+            if channel_id in failed_channels:
                 continue
 
-            snippet = video["snippet"]
-            broadcast = snippet.get("liveBroadcastContent", "none")
-            live_details = video.get("liveStreamingDetails")
+            ids = channel_videos.get(channel_id, [])
+            channel_state = state.get("channels", {}).get(channel_id)
 
-            raw_duration = video.get("contentDetails", {}).get("duration", "")
-            duration = parse_iso_duration(raw_duration)
+            if channel_state is None:
+                live_ids = [
+                    vid for vid in ids
+                    if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
+                ]
+                state.setdefault("channels", {})[channel_id] = {"seen": ids, "live_notified": live_ids}
+                state_changed = True
+                print(f"Initialized: {channel_name}")
+                continue
 
-            # ดึงเวลาเริ่มไลฟ์ หรือเวลาปล่อยคลิป
-            if broadcast == "live":
-                event_time = (live_details.get("actualStartTime") if live_details else None) or snippet.get("publishedAt")
-                if video_id not in live_notified:
-                    send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
-                    live_notified.append(video_id)
+            seen = list(channel_state.get("seen", []))
+            live_notified = list(channel_state.get("live_notified", []))
+            
+            webhook_env_key = groups.get(channel["group"], {}).get("webhook_env", "")
+            webhook = os.environ.get(webhook_env_key)
+
+            if not webhook:
+                print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
+                continue
+
+            for video_id in ids:
+                video = details.get(video_id)
+                if video is None:
+                    continue
+
+                snippet = video["snippet"]
+                broadcast = snippet.get("liveBroadcastContent", "none")
+                live_details = video.get("liveStreamingDetails")
+
+                raw_duration = video.get("contentDetails", {}).get("duration", "")
+                duration = parse_iso_duration(raw_duration)
+
+                if broadcast == "live":
+                    event_time = (live_details.get("actualStartTime") if live_details else None) or snippet.get("publishedAt")
+                    if video_id not in live_notified:
+                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
+                        live_notified.append(video_id)
+                        state_changed = True
+
+                elif video_id not in seen and broadcast == "none" and live_details is None:
+                    event_time = snippet.get("publishedAt")
+                    send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, event_time)
+
+                if video_id not in seen:
+                    seen.append(video_id)
                     state_changed = True
 
-            elif video_id not in seen and broadcast == "none" and live_details is None:
-                event_time = snippet.get("publishedAt")
-                send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, event_time)
+            channel_state["seen"] = seen[-10:]
+            channel_state["live_notified"] = live_notified[-10:]
 
-            if video_id not in seen:
-                seen.append(video_id)
-                state_changed = True
+        # 4. Clear Error on Success
+        if "last_error" in state:
+            del state["last_error"]
+            if "last_error_time" in state:
+                del state["last_error_time"]
+            state_changed = True
+            print("Previous error cleared as run succeeded.")
 
-        channel_state["seen"] = seen[-10:]
-        channel_state["live_notified"] = live_notified[-10:]
+        # 5. Save state
+        if state_changed:
+            state["last_run"] = now.isoformat()
+            save_state(state)
+            print("State updated and saved.")
+        else:
+            print("No new updates. Skipping state save.")
 
-    # 4. Clear Error on Success
-    if "last_error" in state:
-        del state["last_error"]
-        if "last_error_time" in state:
-            del state["last_error_time"]
-        state_changed = True
-        print("Previous error cleared as run succeeded.")
+        if failed_channels:
+            print("Some channels failed. Retrying next run.")
 
-    # 5. Save state
-    if state_changed:
-        state["last_run"] = now.isoformat()
-        save_state(state)
-        print("State updated and saved.")
-    else:
-        print("No new updates. Skipping state save.")
+        print("Monitor completed successfully.")
 
-    if failed_channels:
-        print("Some channels failed. Retrying next run.")
-
-    print("Monitor completed successfully.")
+    except Exception as e:
+        # ส่งแจ้งเตือนเข้า Discord เมื่อมี Error ใดๆ เกิดขึ้น
+        print(f"Unhandled Exception Caught: {e}")
+        handle_error(state, str(e), default_webhook)
+        raise e  # re-raise เพื่อให้ GitHub Actions รับรู้ว่า Step นี้ล้มเหลว (ขึ้นเครื่องหมาย ❌)
 
 
 if __name__ == "__main__":
