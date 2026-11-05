@@ -199,22 +199,27 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
         unix_ts = int(dt.timestamp())
         time_tag = f" (<t:{unix_ts}:R>)"
 
-    duration_badge = f" `[{duration}]`" if (duration and event_type == "video") else ""
-
+    # หัวข้อตามแต่ละ Group
     if group == "A":
         if event_type == "live":
-            header = f"🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!"
+            header = "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!"
         else:
-            header = f"🎬 FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!"
+            header = "🎬 FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!"
     elif group == "B":
         if event_type == "live":
-            header = f"🔴 LIVE NOW!"
+            header = "🔴 LIVE NOW!"
         else:
-            header = f"🚨 NEW VIDEO ALERT 🚨"
+            header = "🚨 NEW VIDEO ALERT 🚨"
     else:
         header = "🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!"
 
-    message = f"📺 **{channel_name}**{duration_badge}\n{header}{time_tag}\n\n{video_url}"
+    # รายละเอียดช่องและความยาวคลิป
+    info_line = f"from **{channel_name}**"
+    if duration and event_type == "video":
+        info_line += f" | video duration [{duration}]"
+
+    # จัดโครงสร้างข้อความใหม่ตามรูปแบบที่ต้องการ
+    message = f"{header}{time_tag}\n{info_line}\n{video_url}"
 
     payload = {
         "content": message,
@@ -224,7 +229,6 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
     requests.post(webhook, json=payload, timeout=15).raise_for_status()
     time.sleep(1)
     print(f"Sent {event_type} notification for '{channel_name}' to Group {group}: {video_id}")
-
 
 # -------------------------
 # MAIN MONITOR
