@@ -158,11 +158,11 @@ This section was made 100% by humans.
 2. ตั้งค่า External Cron Trigger
 เนื่องจากระบบเน้นความเสถียรและตรงเวลา จึงใช้บริการ External Cron (เช่น cron-job.org) ยิงมาที่ GitHub Actions ทุกๆ 5 นาที:
 
-```text
+...
 1) เข้าไปที่ cron-job (https://console.cron-job.org/)
 2) สร้าง cronjob จากนั้นใส่รายละเอียดดังนี้
 
-
+```text
 ส่วน COMMON:
 
 URL: https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/dispatches
@@ -170,8 +170,9 @@ URL: https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/dispatches
 เปลี่ยน YOUR_USERNAME/YOUR_REPO เป็นของตัวเอง
 
 Execution schedule: ตั้งเวลาการทำงานอัตโนมัติ
+```
 
-
+```text
 ส่วน ADVANCED:
 
 Headers [1], [2], [3]:
@@ -202,7 +203,8 @@ Request Body (JSON):
   "event_type": "cron_trigger"
 }
 ```
-
+> ⚠️ **หมายเหตุ (Repository Visibility & Permissions):**
+> หากต้องการให้ Repository เป็น **Private** ไม่ว่าจะเป็นเรื่องข้อจำกัดเวลาของ GitHub Actions หรือไม่ก็ตาม ต้องแน่ใจว่าได้ตั้งค่าสิทธิ์ Personal Access Token (PAT) ให้มีสิทธิ์ `contents: write` และ `actions: write` อย่างถูกต้อง (อย่างไรก็ตาม แนะนำให้ตั้งค่า Repository เป็น **Public** เพื่อการใช้งาน GitHub Actions รันฟรีได้ไม่จำกัดเวลา)
 ---------------------------
 ## 🧪 การทดสอบระบบ (Test Run)
 
@@ -225,7 +227,33 @@ Developer
 ```
 ---------------------------
 
-### *Project Timeline & History*
+### *⋆ Project Timeline & History⋆*
 - Project Created: `03/11/2026`
 - Main Code Complete: `04/11/2026`
 - 1st Refactor (Add Error Handling): `05/11/2026`
+
+---------------------------
+
+### ❓ปัญหาที่พบบ่อย (Troubleshooting & Common Issues)
+
+หากตั้งค่าตามคู่มือแล้วเกิด Error หรือระบบไม่ส่งแจ้งเตือน ตรวจสอบจุดที่มักจะมองข้ามเหล่านี้:
+
+1. **GitHub Actions / Cron Trigger ขึ้น Error (401 / 404 / Unauthorized)**
+   - ตรวจสอบสิทธิ์ Personal Access Token (PAT) ว่าเปิดสิทธิ์ `contents: write` และ `actions: write` แล้วหรือยัง
+   - ตรวจสอบ URL ของ Repository ใน `cron-job.org` ว่าพิมพ์ถูกต้องตามรูปแบบ (`https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/dispatches`)
+
+2. **บอทหยุดทำงานหลังจากผ่านไปประมาณ 7 วัน (กรณี Private Repository)**
+   - Repository แบบ Private จะมีโควต้ารัน GitHub Actions ฟรีเพียง 2,000 นาที/เดือน การสั่งรันทุก 5 นาทีจะทำให้โควต้าหมดอย่างรวดเร็ว แนะนำให้เปลี่ยน Repository Visibility เป็น **Public** เพื่อใช้งานรันฟรีได้ไม่จำกัดเวลา
+
+3. **เกิด `KeyError` หรือแจ้งเตือนว่าไม่พบ Environment Variable**
+   - ตรวจสอบชื่อ Secrets ใน GitHub Secrets ว่าตั้งชื่อตรงกับคีย์ที่กำหนดใน `monitor.yml` ทุกตัวอักขระหรือไม่
+
+4. **YouTube API Error (403 / Quota Exceeded)**
+   - ตรวจสอบว่าได้กดเปิดใช้งาน **YouTube Data API v3** ใน Google Cloud Console แล้วหรือยัง
+   - ตรวจสอบว่า API Key ยังใช้งานได้ปกติ และโควต้าประจำวัน (10,000 Units) ไม่ได้หมดลง
+
+5. **ดึงข้อมูลช่อง YouTube ไม่สำเร็จ (Channel Fetch Error)**
+   - ตรวจสอบ `id` ของช่องใน `config.json` ว่าขึ้นต้นด้วย `UC...` เสมอ (ห้ามใช้ Handle เช่น `@ChannelName` หรือ Custom URL)
+
+6. **ระบบไม่ส่งแจ้งเตือน Error บน Discord ซ้ำๆ**
+   - ระบบมีระบบ **6-Hour Anti-Spam Cooldown** สำหรับ Error ข้อความเดิม เพื่อป้องกันสปัมข้อความรบกวนใน Discord ทุก 5 นาที สามารถเข้าไปตรวจสอบรายละเอียดการทำงานจริงได้ที่แท็บ Actions บน GitHub
