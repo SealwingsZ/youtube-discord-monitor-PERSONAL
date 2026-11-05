@@ -166,6 +166,7 @@ def send_recovery_alert(webhook, last_error):
 
 
 def api_get(endpoint, params):
+    raise RuntimeError("YouTube API Quota/Permission Error (403): The request cannot be completed because you have exceeded your quota.")
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
     
@@ -175,6 +176,7 @@ def api_get(endpoint, params):
         
     response.raise_for_status()
     return response.json()
+    
 
 
 def load_json(path, default):
