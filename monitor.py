@@ -124,7 +124,7 @@ def handle_error(state, error_msg, webhook):
         
         payload = {
             "content": (
-                f"> **[🚨 System Alert] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
+                f"> **[🚨 System Alert 🚨] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
                 f"\n"
                 f"💥 **Detected Issue:**\n"
                 f"```{error_msg}```"
@@ -151,7 +151,7 @@ def send_recovery_alert(webhook, last_error):
     now_ts = int(datetime.now(timezone.utc).timestamp())
     payload = {
         "content": (
-            f"> **[✅ System Status] YouTube Discord Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
+            f"> **[✅ System Status ✅] YouTube Discord Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
             f"\n"
             f"🛠️ **Resolved Issue:**\n"
             f"```{last_error}```"
@@ -166,7 +166,7 @@ def send_recovery_alert(webhook, last_error):
 
 
 def api_get(endpoint, params):
-    raise RuntimeError("YouTube API Quota/Permission Error (403): The request cannot be completed because you have exceeded your quota.")
+    raise requests.exceptions.ConnectTimeout("HTTPSConnectionPool(host='www.googleapis.com', port=443): Read timed out. (read timeout=30)")
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
     
