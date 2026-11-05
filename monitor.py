@@ -39,7 +39,7 @@ def generate_channel_summary(channels, groups, state):
     """สร้างตารางสรุปสถานะช่องและการ Route Webhook"""
     total = len(channels)
     summary_lines = []
-    summary_lines.append(f"### 📊 YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n")
+    summary_lines.append(f"### YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n")
     
     if total > MAX_RECOMMENDED_CHANNELS:
         summary_lines.append(f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n")
@@ -65,7 +65,7 @@ def generate_channel_summary(channels, groups, state):
             seen_count = len(ch_state.get("seen", []))
             state_status = f"Tracking ({seen_count} videos)"
         else:
-            state_status = "🆕 Pending First Run"
+            state_status = "..Pending First Run"
 
         summary_lines.append(f"| {idx} | **{c_name}** | `{c_id}` | Group {c_group} | {route_status} | {state_status} |")
 
@@ -119,8 +119,16 @@ def handle_error(state, error_msg, webhook):
         return
 
     if should_send_error_alert(state, error_msg):
+        # ดึงเวลาปัจจุบันในรูปแบบ Unix Timestamp สำหรับแสดงใน Discord
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        
         payload = {
-            "content": f"**[⚠︎System Alert⚠︎] YouTube Discord Monitor Error!**\n\n```{error_msg}```",
+            "content": (
+                f"> **[🚨System Alert🚨 YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
+                f">\n"
+                f"> > 💥 **Issue Found:**\n"
+                f"> > `{error_msg}`"
+            ),
             "allowed_mentions": {"parse": []}
         }
         try:
@@ -134,6 +142,27 @@ def handle_error(state, error_msg, webhook):
         save_state(state)
     else:
         print(f"Skipped error alert (Cooldown active): {error_msg}")
+
+def send_recovery_alert(webhook, last_error):
+    """ส่งแจ้งเตือนเมื่อระบบกลับมาทำงานเป็นปกติหลังเกิด Error"""
+    if not webhook:
+        return
+
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    payload = {
+        "content": (
+            f"> **[✅System Status✅] YouTube Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
+            f">\n"
+            f"> > 🛠️ **Resolved Issue:**\n"
+            f"> > `{last_error}`"
+        ),
+        "allowed_mentions": {"parse": []}
+    }
+    try:
+        requests.post(webhook, json=payload, timeout=10)
+        print("Sent recovery alert to Discord.")
+    except Exception as e:
+        print(f"Failed to send recovery alert to Discord: {e}")
 
 
 def api_get(endpoint, params):
@@ -251,7 +280,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!หิน หน เห็น หุน")
+        raise RuntimeError("ทดสอบระบบขัดข้องกะทันหันอีกสักรอบ")
         # สรุปสถานะช่องและ Route
         generate_channel_summary(channels, groups, state)
 
@@ -340,6 +369,12 @@ def main():
 
         # 4. Clear Error on Success
         if "last_error" in state:
+            previous_error = state.get("last_error", "Unknown error")
+            
+            # ยิงแจ้งเตือนกลับเป็นปกติ 1 ครั้ง
+            send_recovery_alert(error_webhook, previous_error)
+
+            # ลบสถานะ Error ออกจาก state
             del state["last_error"]
             if "last_error_time" in state:
                 del state["last_error_time"]
