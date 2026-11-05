@@ -57,7 +57,7 @@ def generate_channel_summary(channels, groups, state):
         webhook_env = group_info.get("webhook_env", "")
         has_webhook = bool(os.environ.get(webhook_env)) if webhook_env else False
         
-        route_status = f"✅ `{webhook_env}`" if has_webhook else f"❌ Missing `{webhook_env}`"
+        route_status = f"no error. `{webhook_env}`" if has_webhook else f"MISSING `{webhook_env}`"
         
         # ตรวจสอบสถานะ State
         ch_state = state.get("channels", {}).get(c_id)
@@ -120,7 +120,7 @@ def handle_error(state, error_msg, webhook):
 
     if should_send_error_alert(state, error_msg):
         payload = {
-            "content": f"🚨 **[System Alert] YouTube Monitor Error**\n```{error_msg}```",
+            "content": f"**[System Alert] YouTube Monitor Error!**\n\n```{error_msg}```",
             "allowed_mentions": {"parse": []}
         }
         try:
@@ -241,13 +241,15 @@ def main():
     groups = config.get("groups", {})
     channels = config.get("channels", [])
 
-    # ดึง Webhook สำหรับยิงแจ้งเตือน Error
+    # ดึง Webhook สำรองกรณีไม่ได้ตั้ง DISCORD_WEBHOOK_ERROR ไว้
     default_webhook = None
     if groups:
         first_group = list(groups.values())[0]
         default_webhook = os.environ.get(first_group.get("webhook_env", ""))
 
-    # ครอบ try...except ใหญ่สุดเพื่อดักทุก Error ที่เกิดขึ้นในระบบ
+    # ดึง Webhook สำหรับส่ง Error โดยเฉพาะ (ถ้าไม่มีจะถอยไปใช้ default_webhook)
+    error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
+
     try:
         raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!หัน หัน หั น หัน หัน")
         # สรุปสถานะช่องและ Route
@@ -360,8 +362,8 @@ def main():
     except Exception as e:
         # ส่งแจ้งเตือนเข้า Discord เมื่อมี Error ใดๆ เกิดขึ้น
         print(f"Unhandled Exception Caught: {e}")
-        handle_error(state, str(e), default_webhook)
-        raise e  # re-raise เพื่อให้ GitHub Actions รับรู้ว่า Step นี้ล้มเหลว (ขึ้นเครื่องหมาย ❌)
+        handle_error(state, str(e), error_webhook)
+        raise e  # re-raise เพื่อให้ GitHub Actions รับรู้ว่า Step นี้ล้มเหลว 
 
 
 if __name__ == "__main__":
