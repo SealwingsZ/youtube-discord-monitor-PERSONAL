@@ -234,7 +234,7 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
 # MAIN MONITOR
 # -------------------------
 def main():
-    raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!")
+    raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!หัน หัน หัน")
     config = load_json(CONFIG_FILE, {})
     state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
 
