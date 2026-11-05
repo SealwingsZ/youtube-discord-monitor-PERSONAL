@@ -395,5 +395,7 @@
       ],
       "live_notified": []
     }
-  }
+  },
+  "last_error": "YouTube API Quota/Permission Error (403): The request cannot be completed because you have exceeded your quota.",
+  "last_error_time": "2026-11-05T04:47:14.845024+00:00"
 }
