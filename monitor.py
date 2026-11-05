@@ -120,7 +120,7 @@ def handle_error(state, error_msg, webhook):
 
     if should_send_error_alert(state, error_msg):
         payload = {
-            "content": f"**[System Alert] YouTube Monitor Error!**\n\n```{error_msg}```",
+            "content": f"**[⚠︎System Alert⚠︎] YouTube Discord Monitor Error!**\n\n```{error_msg}```",
             "allowed_mentions": {"parse": []}
         }
         try:
@@ -251,7 +251,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!หัน หัน หั น หัน หัน")
+        raise RuntimeError("ทดสอบระบบขัดข้องกะทันหัน!หิน หน เห็น หุน")
         # สรุปสถานะช่องและ Route
         generate_channel_summary(channels, groups, state)
 
