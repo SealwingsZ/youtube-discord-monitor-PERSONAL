@@ -166,7 +166,6 @@ def send_recovery_alert(webhook, last_error):
 
 
 def api_get(endpoint, params):
-    raise requests.exceptions.ConnectTimeout("HTTPSConnectionPool(host='www.googleapis.com', port=443): Read timed out. (read timeout=30)")
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
     

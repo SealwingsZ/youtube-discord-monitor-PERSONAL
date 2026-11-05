@@ -136,6 +136,11 @@
       "name": "MyChannel(fortesting)",
       "id": "UCDvjaYFDk-oi43A8IjLdewQ",
       "group": "B"
+    },
+    {
+      "name": "ErrorTest",
+      "id": "UC_INVALID_CHANNEL_TEST_123",
+      "group": "B"
     }
   ]
 }
