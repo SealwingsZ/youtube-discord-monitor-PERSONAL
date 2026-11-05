@@ -216,7 +216,7 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
     # รายละเอียดช่องและความยาวคลิป
     info_line = f"from **{channel_name}**"
     if duration and event_type == "video":
-        info_line += f" | video duration [{duration}]"
+        info_line += f" | video duration `[{duration}]`"
 
     # จัดโครงสร้างข้อความใหม่ตามรูปแบบที่ต้องการ
     message = f"{header}{time_tag}\n{info_line}\n{video_url}"
