@@ -1,3 +1,378 @@
 {
-  "channels": {}
+  "channels": {
+    "UCk2uxbWi5py_iJXaEsh2YRA": {
+      "name": "SpokeIsHere",
+      "seen": [
+        "u21St-Q58GI",
+        "j7JddsoUH8A",
+        "FEropZ_Tq7Y",
+        "ipEi6kkTIlI",
+        "8_Au10osdEo",
+        "ynkhNRpQ9Xc",
+        "V9HzAdwgf-I",
+        "lA1ohDqw8XA",
+        "IOS7FKtiyxE",
+        "y5IdSoHdkgg"
+      ],
+      "live_notified": []
+    },
+    "UCPLMPHT-d8GZOqL_AHJFdQQ": {
+      "name": "ParrotX2",
+      "seen": [
+        "zMoihcFz2kY",
+        "O-ipuD6qy1Q",
+        "HDDxxeh3r-E",
+        "bP86n9nFoJY",
+        "NT2Is90lFoI",
+        "1EgS0othQe4",
+        "we2dBzQxtgQ",
+        "BWmWZTDxFrk",
+        "9-j9GWjyWpY",
+        "bHxLy6Qza3M"
+      ],
+      "live_notified": []
+    },
+    "UCkzzNLnuM-VsATWC53ehwOQ": {
+      "name": "Wemmbu",
+      "seen": [
+        "Zw_HE1mQ7rA",
+        "smi6fnthKI0",
+        "ZjO0dep5VjU",
+        "VOuEQkWDfao",
+        "_6ucSC1-7ZI",
+        "_hyFGrcVv5U",
+        "4v_jk0w7wR0",
+        "Ytm8WiQLNZA",
+        "OmFo1yZyBhc",
+        "5hG_nAYEC2g"
+      ],
+      "live_notified": []
+    },
+    "UCvYPobTo42NM36X7VC4dLhA": {
+      "name": "FlameFrags",
+      "seen": [
+        "3Uhv1tJo7gc",
+        "UnFIrVKA9Zc",
+        "Ym2wmd19S_c",
+        "ljppGDO4HlU",
+        "yBy5NnLTiWQ",
+        "BCiRLHaeHkI",
+        "BkYekSPynVo",
+        "h68WUZ8b0O0",
+        "8t8YBu7bdT0",
+        "ZT-k42SC7L0"
+      ],
+      "live_notified": []
+    },
+    "UCLnexd-nCDLzjHOX6DfsOBg": {
+      "name": "Parrot2nd",
+      "seen": [
+        "HATa7GvNIa4",
+        "ggDZQqpXXAU",
+        "2abg-wjRdw8",
+        "lj8nOTnh9DQ",
+        "komDOkKVVN4",
+        "BHkq3CUmiK0",
+        "N_eiK11o3_s",
+        "hcAREFV5Aa4",
+        "z7KdjJibHYk",
+        "2U61wN-xXnc"
+      ],
+      "live_notified": []
+    },
+    "UCnEXyobk4RegTkyU0BelI5Q": {
+      "name": "Wemmbu2nd",
+      "seen": [
+        "8q3gc9r_M3w",
+        "eSWni1Ze2eQ"
+      ],
+      "live_notified": []
+    },
+    "UC57I34z39EPd-bzgqZq2_mw": {
+      "name": "SpokeIsNotHere",
+      "seen": [],
+      "live_notified": []
+    },
+    "UCDBk00p1BD1rBe-A7sqfqWg": {
+      "name": "FlameFrags2nd",
+      "seen": [
+        "x6yXCx3iYy8",
+        "kJ8k04ABRWM",
+        "6dYqMDLsVvw",
+        "52RrALX42Fk",
+        "4N3LOsvzpFg",
+        "DJ15Ng4P7P8",
+        "58vDzW_1Kek",
+        "D_rp9ooM0oA",
+        "TF345f35pzU",
+        "8tZkSTh7Lwk"
+      ],
+      "live_notified": []
+    },
+    "UC2gufCjSyNihNbOEZE50bwQ": {
+      "name": "Judelow",
+      "seen": [
+        "fePJf1pkv3k",
+        "rvRARwVFk8I",
+        "SU85q-4mjMM",
+        "VyTODFobDQI",
+        "Wb7BNcTaysQ",
+        "FckE5FPI12w",
+        "J_jUqmrJqy0",
+        "oK9GxQcdBYE",
+        "iaKj-3hrAQw",
+        "vftFKllBoOE"
+      ],
+      "live_notified": []
+    },
+    "UCsS3G0h8Z9WOSD6ubFyelnA": {
+      "name": "Squiddo",
+      "seen": [
+        "9uZ5eWeYjgM",
+        "3AcqRt9Sdr0",
+        "Xv08Q1a3Mb4",
+        "SIMRWdWnbFc",
+        "k9vNGXZlzaA",
+        "3KQ3NSIMbrE",
+        "34GR9CCu7GI",
+        "GeTqLaxHTmQ",
+        "y1x_ivlaPsU",
+        "nz9whR1TVY0"
+      ],
+      "live_notified": []
+    },
+    "UCRSS1SWypicfdqE8x_7CP0g": {
+      "name": "Jaden_Man",
+      "seen": [
+        "F3L_PQa4Gsk",
+        "R63r_wEnnSk",
+        "g3llOrMtAfM",
+        "dj_t8waqV1E",
+        "ltO4-Z9NUEY",
+        "oGdemvXZQbE",
+        "FhkW8zxHIBU",
+        "qMUelva3roI",
+        "P1KAQDkq2k4",
+        "c1rzc-7-Puo"
+      ],
+      "live_notified": []
+    },
+    "UCrpp6Riy9JEMx-w7MsaPrFA": {
+      "name": "Pangi",
+      "seen": [
+        "YeIT7ILJbCo",
+        "IGI_lB0k-vY",
+        "mcxZuIfbPyk",
+        "-uVwca7NjEY",
+        "RYY8B2waYvo",
+        "vLO5LqrRkjI",
+        "y1kTEZuGlZI",
+        "BOUcyaQGS9c",
+        "lagGsqbZH4k",
+        "O-wp3Hks-p4"
+      ],
+      "live_notified": []
+    },
+    "UCwPlekBdyNPnNxLhkp9K--A": {
+      "name": "MinuteTech",
+      "seen": [
+        "CoaYXcg9twI",
+        "zrbinqDF44A",
+        "F9EfSsMyA5g",
+        "jH0285Is97U",
+        "iePyZLl5IZU",
+        "YR5RyqNaWQA",
+        "MQBJkFwPKyA",
+        "0jSEH6f4Sdo",
+        "zYdn8v-Fmb8",
+        "RoBabfioVF8"
+      ],
+      "live_notified": []
+    },
+    "UCE1U91gqwuBeSyqeuSpDXlw": {
+      "name": "PrinceZam",
+      "seen": [
+        "HRAtrq6o0rQ",
+        "MNsTv4Se4OU",
+        "f9AD4Qdy8bE",
+        "VOMcMY-R4xU",
+        "znkNmcwlGEg",
+        "QocH9hUyJMo",
+        "PAgadf1CLSU",
+        "kzA9lq_-U48",
+        "jTxkHP0r5lo",
+        "vhpXcKyIbic"
+      ],
+      "live_notified": []
+    },
+    "UCGF5H53_h3Y6IGpANbDEh6w": {
+      "name": "JumperWho",
+      "seen": [
+        "zalY9RIVNss",
+        "lAPiocmnGd0",
+        "VLj0V8GTf-Q",
+        "lSWTRCIDtzg",
+        "QIWkP4uyLLU",
+        "6UdeskVpXp8",
+        "DsOqYtCdLVI",
+        "92-AY2Cw6n8",
+        "11oxApuoUeo",
+        "ROtdtCDHa5w"
+      ],
+      "live_notified": []
+    },
+    "UCiytbL7aJQ_ak05CWfnOqgQ": {
+      "name": "Mapicc",
+      "seen": [
+        "Gz734wDv9lA",
+        "Hhf-MYRjwiM",
+        "Nor8Bb5u2Ok",
+        "dwldrtY-A2E",
+        "lLbhM7Hf7nU",
+        "T3cu4PM6_iw",
+        "qXv13N2J2wk",
+        "HZldDIPdzfw",
+        "JEx26UmerUk",
+        "U2R6FtsxLK0"
+      ],
+      "live_notified": []
+    },
+    "UCzguD6UiqYaeMDQBbuEUyWw": {
+      "name": "TheoBirdTheBald",
+      "seen": [
+        "09I5I6HuJrw",
+        "nTSwk7i9Yl0",
+        "8R2a0Q-XiJQ",
+        "AvOfXyce_oc",
+        "pkdqLgnrQmk",
+        "z3frRaM5ksg",
+        "4gdIdEStUSY",
+        "ojuXL-ug_jo",
+        "ijCVJTexRFw",
+        "p9WhddVgiYQ"
+      ],
+      "live_notified": []
+    },
+    "UC9_FW5zQ3Lq6C8u57Etjgtw": {
+      "name": "Rejocin",
+      "seen": [
+        "XjDg8kdJF7c",
+        "WAHoiPOVaHM",
+        "o7gPO29JSnE",
+        "45wOmzYagcU",
+        "Mli2-3cjK4c",
+        "-Hy_q3BG_8k",
+        "wP1O-nO-x60",
+        "m59oR_KrWoU",
+        "iFqkTGY2QIM",
+        "0cy91qDAzAM"
+      ],
+      "live_notified": []
+    },
+    "UCJOIIJJsFmzZv48NvTuafvw": {
+      "name": "PlanetLord",
+      "seen": [
+        "D257ERt48jU",
+        "fVpg09H_PMY",
+        "jhjl5Uqw2h8",
+        "rGqnhr4nVug",
+        "7kKX_bIsTlo",
+        "lJXkA3REx9U",
+        "7qAAcjp1az8",
+        "0sae_7F5c6g",
+        "fVTWm6WdKl0",
+        "lGaJA2lMaOA"
+      ],
+      "live_notified": []
+    },
+    "UCWR3BeQy_hOQyZli0zFTHYg": {
+      "name": "LuigiToan",
+      "seen": [
+        "IPBJXsDQ3vA",
+        "wbcTYI-Tj94",
+        "YvtwmJNfkSQ",
+        "k2dN3oST4sI",
+        "jMUFy5Lw-kw",
+        "XeBLrd1gkd8",
+        "54AdKeH-B3o",
+        "PGClm-9yZbs",
+        "HYDCDj2tK_E",
+        "rzHAyh5pHb8"
+      ],
+      "live_notified": [
+        "HYDCDj2tK_E"
+      ]
+    },
+    "UCcsTbJjR3c8pOpfiv_d3wwg": {
+      "name": "Sharpness",
+      "seen": [
+        "6-QPU-zGdWU",
+        "Mu0iB93uorU",
+        "hTYGh-jtWwI",
+        "2McKvB7f1dM",
+        "-ZVNI-frn_c",
+        "xGLw4FDvjcM",
+        "FVsCdyB1RIY",
+        "YGa_GZR9Sb8",
+        "6oR6PI9YfjQ",
+        "GGz3albNABY"
+      ],
+      "live_notified": []
+    },
+    "UCiVJZlfcmWMUiXv5oywnDhQ": {
+      "name": "Wifies",
+      "seen": [
+        "FaUewQqahA4",
+        "BUPd3Qqfc1A",
+        "mmL4kosieGs",
+        "N3wUqKHtBP0",
+        "YhFHoat4PCY",
+        "9sMV5edAZPs",
+        "II5h5V1Cov0",
+        "3V7Rvo4Gvic",
+        "NnTycJg1MIo",
+        "izNezNuv9sU"
+      ],
+      "live_notified": []
+    },
+    "UCSn9XPmhbkCAcqb_r1limvw": {
+      "name": "Wifi",
+      "seen": [
+        "vkz5bYe5mdE",
+        "wPbyHEXPCqY",
+        "r0-IPQy7chQ",
+        "FlapnpKa35o",
+        "wgqbQ7OpHwE",
+        "UmN-fEEkg4k",
+        "fJbIrnW6GiM",
+        "APoPXKHo3H4",
+        "MzsgHFaQYE8",
+        "1SBK9aVDbLg"
+      ],
+      "live_notified": []
+    },
+    "UCzMjRlKVO9XIqH_crIFpi6w": {
+      "name": "Skeppy",
+      "seen": [
+        "DD2HVfUnhQk",
+        "NtS3LkdYKrA",
+        "l6FriuDIo8I",
+        "CH2GTfwUjnA",
+        "GsUnOPB3inY",
+        "5_wzrT5Vhfs",
+        "O6J1B5n28fA",
+        "b-4J8GubxEQ",
+        "4N647XCE8oI",
+        "F_-N5AVFzBY"
+      ],
+      "live_notified": []
+    },
+    "UCDvjaYFDk-oi43A8IjLdewQ": {
+      "name": "MyChannel(for testing)",
+      "seen": [
+        "567OoxQVjZQ"
+      ],
+      "live_notified": []
+    }
+  }
 }
