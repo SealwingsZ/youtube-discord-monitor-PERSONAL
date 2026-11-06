@@ -328,7 +328,7 @@ def main():
         unique_ids = list(dict.fromkeys(all_video_ids))
         details = get_video_details(unique_ids) if unique_ids else {}
 
-       # 3. Process each channel
+        # 3. Process each channel
         for channel in channels:
             channel_id = channel["id"]
             channel_name = channel.get("name", "Unknown Channel")
@@ -345,7 +345,7 @@ def main():
                 ]
                 state.setdefault("channels", {})[channel_id] = {
                     "name": channel_name,
-                    "seen": list(reversed(ids)),  # 👈 กลับลำดับให้เป็น เก่า -> ใหม่
+                    "seen": list(reversed(ids)),
                     "live_notified": list(reversed(live_ids))
                 }
                 state_changed = True
@@ -366,8 +366,7 @@ def main():
                 print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
                 continue
 
-            # 👈 วนลูปจากคลิปเก่าไปหาคลิปใหม่ (reversed)
-            for video_id in reversed(ids):
+                for video_id in reversed(ids):
                 video = details.get(video_id)
                 if not video:
                     continue
@@ -379,7 +378,10 @@ def main():
                 pub_time_str = snippet.get("publishedAt")
 
                 pub_dt = datetime.fromisoformat(pub_time_str.replace("Z", "+00:00")) if pub_time_str else None
-                is_delayed = pub_dt and (now - pub_dt).total_seconds() > 420
+                delay_seconds = (now - pub_dt).total_seconds() if pub_dt else 0
+
+                is_delayed = delay_seconds > 420    # ⏱️ เกิน 7 นาที (นับเป็น Outage Delay)
+                is_too_old = delay_seconds > 1800   # ⛔ เกิน 30 นาที (ข้ามการแจ้งเตือน Discord)
 
                 should_notify = False
 
@@ -398,6 +400,9 @@ def main():
                             print(f"Skipped past live stream archive for '{channel_name}': {video_id}")
                         elif is_youtube_short(video_id):
                             print(f"Skipped YouTube Short for '{channel_name}': {video_id}")
+                        elif is_too_old:
+                            # 👈 ข้ามการยิง Discord ถ้าอัปโหลดมาแล้วเกิน 30 นาที
+                            print(f"Skipped old video notification (>30m delay) for '{channel_name}': {video_id}")
                         else:
                             send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
                             should_notify = True
@@ -409,12 +414,28 @@ def main():
                         if not first_delayed_pub_dt:
                             first_delayed_pub_dt = pub_dt
 
+                # บันทึก ID ลง seen เสมอ แม้จะถูกข้ามการแจ้งเตือน เพื่อกันซ้ำ
                 if video_id not in seen:
                     seen.append(video_id)
                     state_changed = True
 
-            channel_state["seen"] = seen[-10:]
-            channel_state["live_notified"] = live_notified[-10:]
+
+            # ---------------------------------------------------------
+            # 🔄 State Re-alignment (จัดเรียงลำดับ เก่า -> ใหม่ อัตโนมัติ)
+            # ---------------------------------------------------------
+            existing_seen_set = set(seen)
+            old_history = [v for v in seen if v not in ids]
+            api_chronological = [v for v in reversed(ids) if v in existing_seen_set]
+            
+            realigned_seen = list(dict.fromkeys(old_history + api_chronological))
+            realigned_live = list(dict.fromkeys(live_notified))
+
+            if realigned_seen != channel_state.get("seen"):
+                state_changed = True
+
+            channel_state["seen"] = realigned_seen[-20:]
+            channel_state["live_notified"] = realigned_live[-20:]
+
 
         # 4. Clear Error on Success
         if "last_error" in state:
