@@ -176,17 +176,6 @@ def send_recovery_alert(webhook, last_error):
         print("Sent recovery alert to Discord.")
 
 
-def send_recovery_alert(webhook, last_error):
-    """ส่งแจ้งเตือนเมื่อระบบกลับมาทำงานเป็นปกติหลังเกิด Error"""
-    now_ts = int(datetime.now(timezone.utc).timestamp())
-    payload = {
-        "content": f"> **[✅ System Status ✅] YouTube Discord Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n\n🛠️ **Resolved Issue:**\n```{last_error}```",
-        "allowed_mentions": {"parse": []}
-    }
-    if post_discord(webhook, payload):
-        print("Sent recovery alert to Discord.")
-
-
 def send_outage_alert(webhook, pub_dt, now_dt, count):
     """ส่งแจ้งเตือน Outage ในรูปแบบช่วงเวลา (เวลาลงคลิป ➔ เวลาแจ้งเตือนสำเร็จ)"""
     if not webhook:
@@ -264,7 +253,17 @@ def get_video_details(video_ids):
                 result[video["id"]] = video
     return result
 
-
+def is_youtube_short(video_id):
+    """ตรวจสอบว่าคลิปเป็น YouTube Short หรือไม่ (เช็กจาก HTTP Status ของ URL /shorts/)"""
+    try:
+        url = f"https://www.youtube.com/shorts/{video_id}"
+        response = session.head(url, allow_redirects=False, timeout=5)
+        # ถ้าเป็น Shorts จะได้ status 200, ถ้าไม่ใช่จะโดน Redirect (302/303) ไปที่ /watch
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Failed to check Shorts status for {video_id}: {e}")
+        return False
+        
 # -------------------------
 # DISCORD
 # -------------------------
@@ -329,7 +328,7 @@ def main():
         unique_ids = list(dict.fromkeys(all_video_ids))
         details = get_video_details(unique_ids) if unique_ids else {}
 
-        # 3. Process each channel
+       # 3. Process each channel
         for channel in channels:
             channel_id = channel["id"]
             channel_name = channel.get("name", "Unknown Channel")
@@ -346,8 +345,8 @@ def main():
                 ]
                 state.setdefault("channels", {})[channel_id] = {
                     "name": channel_name,
-                    "seen": ids,
-                    "live_notified": live_ids
+                    "seen": list(reversed(ids)),  # 👈 กลับลำดับให้เป็น เก่า -> ใหม่
+                    "live_notified": list(reversed(live_ids))
                 }
                 state_changed = True
                 print(f"Initialized state for: {channel_name}")
@@ -367,7 +366,8 @@ def main():
                 print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
                 continue
 
-            for video_id in ids:
+            # 👈 วนลูปจากคลิปเก่าไปหาคลิปใหม่ (reversed)
+            for video_id in reversed(ids):
                 video = details.get(video_id)
                 if not video:
                     continue
@@ -394,11 +394,13 @@ def main():
                     is_past_live = live_details is not None
 
                     if video_id not in seen and video_id not in live_notified:
-                        if not is_past_live:
+                        if is_past_live:
+                            print(f"Skipped past live stream archive for '{channel_name}': {video_id}")
+                        elif is_youtube_short(video_id):
+                            print(f"Skipped YouTube Short for '{channel_name}': {video_id}")
+                        else:
                             send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
                             should_notify = True
-                        else:
-                            print(f"Skipped past live stream archive for '{channel_name}': {video_id}")
 
                 if should_notify:
                     notifications_sent += 1
