@@ -3,7 +3,7 @@ import json
 import re
 import requests
 from requests.exceptions import HTTPError
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import time
 
@@ -14,6 +14,7 @@ API_KEY = os.environ.get("YOUTUBE_API_KEY")
 CONFIG_FILE, STATE_FILE = "config.json", "state.json"
 BASE_URL = "https://www.googleapis.com/youtube/v3"
 MAX_RECOMMENDED_CHANNELS = 30
+ICT = timezone(timedelta(hours=7))
 
 DISCORD_HEADERS = {
     ("A", "live"): "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!",
@@ -124,15 +125,26 @@ def send_recovery_alert(webhook, last_error):
         print("Sent recovery alert to Discord.")
 
 
-def send_outage_alert(webhook, current_time_str, count):
-    """ส่งแจ้งเตือนเข้า Discord Error เมื่อพบคลิปดีเลย์เกิน 7 นาที (บ่งบอกว่า GHA เคยล่ม/เลท)"""
+def send_outage_alert(webhook, now_dt, count):
+    """ส่งแจ้งเตือนเข้า Discord Error เมื่อพบคลิปดีเลย์เกิน 7 นาที (แสดงเวลาไทย + Discord Dynamic Timestamp)"""
+    now_ts = int(now_dt.timestamp())
+    time_ict_str = now_dt.astimezone(ICT).strftime("%H:%M:%S ICT")
+
     payload = {
         "embeds": [{
             "title": "⚠️ GitHub Actions Outage / Delay Detected",
-            "color": 15105570,
+            "color": 15105570,  # สีส้ม (Orange)
             "fields": [
-                {"name": "⏱️ Recovery Time", "value": f"`{current_time_str}`", "inline": True},
-                {"name": "📌 Recovery Status", "value": f"GitHub Actions recovered successfully. Sent **{count}** delayed catch-up notification(s) (>7 mins delay).", "inline": False}
+                {
+                    "name": "⏱️ Recovery Time",
+                    "value": f"`{time_ict_str}` (<t:{now_ts}:F> - <t:{now_ts}:R>)",
+                    "inline": False
+                },
+                {
+                    "name": "📌 Recovery Status",
+                    "value": f"GitHub Actions recovered successfully. Sent **{count}** delayed catch-up notification(s) (>7 mins delay).",
+                    "inline": False
+                }
             ],
             "footer": {"text": "YouTube Notification Monitor • Auto-Recovery"}
         }]
@@ -305,15 +317,26 @@ def main():
                 is_delayed = pub_dt and (now - pub_dt).total_seconds() > 420
 
                 should_notify = False
-                if broadcast == "live" and video_id not in live_notified:
-                    event_time = (live_details.get("actualStartTime") if live_details else None) or pub_time_str
-                    send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
-                    live_notified.append(video_id)
-                    state_changed = should_notify = True
 
-                elif broadcast == "none" and video_id not in seen:
-                    send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
-                    should_notify = True
+                # 1. กรณีเป็นไลฟ์สดที่กำลังจัดอยู่
+                if broadcast == "live":
+                    if video_id not in live_notified:
+                        event_time = (live_details.get("actualStartTime") if live_details else None) or pub_time_str
+                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
+                        live_notified.append(video_id)
+                        state_changed = should_notify = True
+
+                # 2. กรณีเป็นคลิปปกติ (ต้องไม่เคยแจ้งเตือนใน seen/live_notified และต้องไม่ใช่ไลฟ์ที่จบแล้ว)
+                elif broadcast == "none":
+                    is_past_live = live_details is not None  # ถ้ามี liveStreamingDetails แปลว่าเป็นคลิปย้อนหลังไลฟ์สด
+
+                    if video_id not in seen and video_id not in live_notified:
+                        if not is_past_live:
+                            # เป็นคลิปอัปโหลดปกติจริงๆ ถึงจะส่งแจ้งเตือน
+                            send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
+                            should_notify = True
+                        else:
+                            print(f"Skipped past live stream archive for '{channel_name}': {video_id}")
 
                 if should_notify:
                     notifications_sent += 1
@@ -323,7 +346,7 @@ def main():
                 if video_id not in seen:
                     seen.append(video_id)
                     state_changed = True
-
+                    
             channel_state["seen"] = seen[-10:]
             channel_state["live_notified"] = live_notified[-10:]
 
@@ -337,7 +360,7 @@ def main():
 
         # 5. Outage Recovery Alert
         if delayed_notifications > 0:
-            send_outage_alert(error_webhook, now.strftime("%H:%M:%S UTC"), delayed_notifications)
+            send_outage_alert(error_webhook, now, delayed_notifications)
 
         # 6. Save state
         if state_changed:
