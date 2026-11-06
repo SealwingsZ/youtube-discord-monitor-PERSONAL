@@ -486,3 +486,10 @@ def main():
             "delayed_notifications": delayed_notifications,
             "failed_count": len(channels),
             "state_changed": False
+        }
+        generate_channel_summary(channels, groups, state, stats=stats)
+        raise e
+
+
+if __name__ == "__main__":
+    main()
