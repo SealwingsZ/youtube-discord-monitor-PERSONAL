@@ -367,7 +367,7 @@ def main():
                 continue
 
                 for video_id in reversed(ids):
-                video = details.get(video_id)
+                    video = details.get(video_id)
                 if not video:
                     continue
 
