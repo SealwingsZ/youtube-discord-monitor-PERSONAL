@@ -266,10 +266,19 @@ def main():
                     vid for vid in ids
                     if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
                 ]
-                state.setdefault("channels", {})[channel_id] = {"seen": ids, "live_notified": live_ids}
+                state.setdefault("channels", {})[channel_id] = {
+                    "name": channel_name,  # <--- เพิ่มบันทึกชื่อช่องตอนสร้าง State ใหม่
+                    "seen": ids,
+                    "live_notified": live_ids
+                }
                 state_changed = True
                 print(f"Initialized state for: {channel_name}")
                 continue
+
+            # อัปเดตชื่อช่องใน state หากยังไม่มี หรือมีการเปลี่ยนชื่อใน config.json
+            if channel_state.get("name") != channel_name:
+                channel_state["name"] = channel_name
+                state_changed = True
 
             seen = list(channel_state.get("seen", []))
             live_notified = list(channel_state.get("live_notified", []))
