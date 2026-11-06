@@ -231,10 +231,7 @@ def main():
     now = datetime.now(timezone.utc)
     notifications_sent = 0
     delayed_notifications = 0
-    if is_delayed:
-        delayed_notifications += 1
-    if not first_delayed_pub_dt:
-        first_delayed_pub_dt = pub_dt
+    first_delayed_pub_dt = None
 
     groups = config.get("groups", {})
     channels = config.get("channels", [])
@@ -288,7 +285,7 @@ def main():
                     if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
                 ]
                 state.setdefault("channels", {})[channel_id] = {
-                    "name": channel_name,  # <--- เพิ่มบันทึกชื่อช่องตอนสร้าง State ใหม่
+                    "name": channel_name,
                     "seen": ids,
                     "live_notified": live_ids
                 }
@@ -296,7 +293,6 @@ def main():
                 print(f"Initialized state for: {channel_name}")
                 continue
 
-            # อัปเดตชื่อช่องใน state หากยังไม่มี หรือมีการเปลี่ยนชื่อใน config.json
             if channel_state.get("name") != channel_name:
                 channel_state["name"] = channel_name
                 state_changed = True
@@ -337,11 +333,10 @@ def main():
 
                 # 2. กรณีเป็นคลิปปกติ (ต้องไม่เคยแจ้งเตือนใน seen/live_notified และต้องไม่ใช่ไลฟ์ที่จบแล้ว)
                 elif broadcast == "none":
-                    is_past_live = live_details is not None  # ถ้ามี liveStreamingDetails แปลว่าเป็นคลิปย้อนหลังไลฟ์สด
+                    is_past_live = live_details is not None
 
                     if video_id not in seen and video_id not in live_notified:
                         if not is_past_live:
-                            # เป็นคลิปอัปโหลดปกติจริงๆ ถึงจะส่งแจ้งเตือน
                             send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
                             should_notify = True
                         else:
@@ -351,11 +346,13 @@ def main():
                     notifications_sent += 1
                     if is_delayed:
                         delayed_notifications += 1
+                        if not first_delayed_pub_dt:
+                            first_delayed_pub_dt = pub_dt
 
                 if video_id not in seen:
                     seen.append(video_id)
                     state_changed = True
-                    
+
             channel_state["seen"] = seen[-10:]
             channel_state["live_notified"] = live_notified[-10:]
 
