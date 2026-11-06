@@ -57,7 +57,6 @@ def generate_channel_summary(channels, groups, state, stats=None):
         *( [f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n"] if total > MAX_RECOMMENDED_CHANNELS else [] )
     ]
 
-    # เพิ่มบล็อก Execution Summary หากมีข้อมูล stats ส่งมา
     if stats:
         status_icon = "✅" if stats['status'] == "success" else "⚠️" if stats['status'] == "partial_fail" else "❌"
         lines.extend([
@@ -125,7 +124,7 @@ def handle_error(state, error_msg, webhook):
         payload = {
             "embeds": [{
                 "title": "🚨 System Alert — Monitor Error Detected",
-                "color": 15158332,  # สีแดง (Red)
+                "color": 15158332,
                 "fields": [
                     {
                         "name": "⏱️ Detected Time",
@@ -156,7 +155,7 @@ def send_recovery_alert(webhook, last_error):
     payload = {
         "embeds": [{
             "title": "✅ System Status — Monitor Recovered",
-            "color": 3066993,  # สีเขียว (Green)
+            "color": 3066993,
             "fields": [
                 {
                     "name": "⏱️ Recovery Time",
@@ -253,17 +252,17 @@ def get_video_details(video_ids):
                 result[video["id"]] = video
     return result
 
+
 def is_youtube_short(video_id):
     """ตรวจสอบว่าคลิปเป็น YouTube Short หรือไม่ (เช็กจาก HTTP Status ของ URL /shorts/)"""
     try:
         url = f"https://www.youtube.com/shorts/{video_id}"
         response = session.head(url, allow_redirects=False, timeout=5)
-        # ถ้าเป็น Shorts จะได้ status 200, ถ้าไม่ใช่จะโดน Redirect (302/303) ไปที่ /watch
         return response.status_code == 200
     except Exception as e:
         print(f"Failed to check Shorts status for {video_id}: {e}")
         return False
-        
+
 # -------------------------
 # DISCORD
 # -------------------------
@@ -366,8 +365,9 @@ def main():
                 print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
                 continue
 
-                for video_id in reversed(ids):
-                    video = details.get(video_id)
+            # 🛠️ ปรับระดับ Indentation ของลูปด้านล่างให้อยู่ระดับ 12 Spaces
+            for video_id in reversed(ids):
+                video = details.get(video_id)
                 if not video:
                     continue
 
@@ -401,7 +401,6 @@ def main():
                         elif is_youtube_short(video_id):
                             print(f"Skipped YouTube Short for '{channel_name}': {video_id}")
                         elif is_too_old:
-                            # 👈 ข้ามการยิง Discord ถ้าอัปโหลดมาแล้วเกิน 30 นาที
                             print(f"Skipped old video notification (>30m delay) for '{channel_name}': {video_id}")
                         else:
                             send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
@@ -414,11 +413,9 @@ def main():
                         if not first_delayed_pub_dt:
                             first_delayed_pub_dt = pub_dt
 
-                # บันทึก ID ลง seen เสมอ แม้จะถูกข้ามการแจ้งเตือน เพื่อกันซ้ำ
                 if video_id not in seen:
                     seen.append(video_id)
                     state_changed = True
-
 
             # ---------------------------------------------------------
             # 🔄 State Re-alignment (จัดเรียงลำดับ เก่า -> ใหม่ อัตโนมัติ)
@@ -435,7 +432,6 @@ def main():
 
             channel_state["seen"] = realigned_seen[-20:]
             channel_state["live_notified"] = realigned_live[-20:]
-
 
         # 4. Clear Error on Success
         if "last_error" in state:
@@ -476,16 +472,13 @@ def main():
             "state_changed": state_changed
         }
 
-        # แสดงผลตาราง + Execution Summary
         generate_channel_summary(channels, groups, state, stats=stats)
-
         print("Monitor completed successfully.")
 
     except Exception as e:
         print(f"Unhandled Exception Caught: {e}")
         handle_error(state, str(e), error_webhook)
         
-        # แสดง Summary เมื่อสคริปต์เกิด Exception
         stats = {
             "status": "error",
             "status_text": f"Failed: {e}",
@@ -493,10 +486,3 @@ def main():
             "delayed_notifications": delayed_notifications,
             "failed_count": len(channels),
             "state_changed": False
-        }
-        generate_channel_summary(channels, groups, state, stats=stats)
-        raise e
-
-
-if __name__ == "__main__":
-    main()
