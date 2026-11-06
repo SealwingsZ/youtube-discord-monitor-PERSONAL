@@ -305,7 +305,6 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        raise RuntimeError("Testing Discord Back to Normal Alert")
         if not API_KEY:
             raise RuntimeError("YOUTUBE_API_KEY is missing from environment variables.")
 
