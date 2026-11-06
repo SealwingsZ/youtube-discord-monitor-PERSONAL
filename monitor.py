@@ -224,7 +224,7 @@ def get_channel_videos_api(channel_id):
         data = api_get("playlistItems", {
             "part": "snippet",
             "playlistId": playlist_id,
-            "maxResults": 3
+            "maxResults": 5
         })
         return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
     except HTTPError as e:
