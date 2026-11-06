@@ -374,5 +374,7 @@
       ],
       "live_notified": []
     }
-  }
+  },
+  "last_error": "Testing Discord Red Card Alert",
+  "last_error_time": "2026-11-06T02:47:31.066442+00:00"
 }
