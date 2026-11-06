@@ -369,7 +369,9 @@
     },
     "UCDvjaYFDk-oi43A8IjLdewQ": {
       "name": "MyChannel(for testing)",
-      "seen": [],
+      "seen": [
+        "567OoxQVjZQ"
+      ],
       "live_notified": []
     }
   }
