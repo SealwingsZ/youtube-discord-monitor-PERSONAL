@@ -125,24 +125,29 @@ def send_recovery_alert(webhook, last_error):
         print("Sent recovery alert to Discord.")
 
 
-def send_outage_alert(webhook, now_dt, count):
-    """ส่งแจ้งเตือนเข้า Discord Error เมื่อพบคลิปดีเลย์เกิน 7 นาที (แสดงเวลาไทย + Discord Dynamic Timestamp)"""
+def send_outage_alert(webhook, pub_dt, now_dt, count):
+    """ส่งแจ้งเตือน Outage ในรูปแบบช่วงเวลา (เวลาลงคลิป ➔ เวลาแจ้งเตือนสำเร็จ)"""
+    if not webhook:
+        return
+
+    pub_ict_str = pub_dt.astimezone(ICT).strftime("%H:%M:%S ICT")
+    now_ict_str = now_dt.astimezone(ICT).strftime("%H:%M:%S ICT")
+    delay_mins = round((now_dt - pub_dt).total_seconds() / 60)
     now_ts = int(now_dt.timestamp())
-    time_ict_str = now_dt.astimezone(ICT).strftime("%H:%M:%S ICT")
 
     payload = {
         "embeds": [{
             "title": "⚠️ GitHub Actions Outage / Delay Detected",
-            "color": 15105570,  # สีส้ม (Orange)
+            "color": 15105570,
             "fields": [
                 {
-                    "name": "⏱️ Recovery Time",
-                    "value": f"`{time_ict_str}` (<t:{now_ts}:F> - <t:{now_ts}:R>)",
+                    "name": "⏱️ Delay Period (Posted ➔ Recovered)",
+                    "value": f"`{pub_ict_str}` ➔ `{now_ict_str}` (~{delay_mins} mins)\n<t:{now_ts}:F>",
                     "inline": False
                 },
                 {
                     "name": "📌 Recovery Status",
-                    "value": f"GitHub Actions recovered successfully. Sent **{count}** delayed catch-up notification(s) (>7 mins delay).",
+                    "value": f"GitHub Actions recovered successfully. Sent **{count}** delayed catch-up notification(s).",
                     "inline": False
                 }
             ],
@@ -226,6 +231,10 @@ def main():
     now = datetime.now(timezone.utc)
     notifications_sent = 0
     delayed_notifications = 0
+    if is_delayed:
+    delayed_notifications += 1
+    if not first_delayed_pub_dt:
+        first_delayed_pub_dt = pub_dt
 
     groups = config.get("groups", {})
     channels = config.get("channels", [])
@@ -359,8 +368,8 @@ def main():
             print("Previous error cleared as run succeeded.")
 
         # 5. Outage Recovery Alert
-        if delayed_notifications > 0:
-            send_outage_alert(error_webhook, now, delayed_notifications)
+        if delayed_notifications > 0 and first_delayed_pub_dt:
+            send_outage_alert(error_webhook, first_delayed_pub_dt, now, delayed_notifications)
 
         # 6. Save state
         if state_changed:
