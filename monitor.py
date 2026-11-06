@@ -115,7 +115,7 @@ def should_send_error_alert(state, error_msg, cooldown_hours=6):
 
 
 def handle_error(state, error_msg, webhook):
-    """จัดการส่งแจ้งเตือน Error เข้า Discord พร้อมบันทึก Cooldown ลง state"""
+    """จัดการส่งแจ้งเตือน Error เข้า Discord แบบ Embeds สวยงาม พร้อมบันทึก Cooldown"""
     if not webhook:
         print(f"Cannot send error alert: Webhook missing. Error: {error_msg}")
         return
@@ -123,8 +123,23 @@ def handle_error(state, error_msg, webhook):
     if should_send_error_alert(state, error_msg):
         now_ts = int(datetime.now(timezone.utc).timestamp())
         payload = {
-            "content": f"> **[🚨 System Alert 🚨] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n\n💥 **Detected Issue:**\n```{error_msg}```",
-            "allowed_mentions": {"parse": []}
+            "embeds": [{
+                "title": "🚨 System Alert — Monitor Error Detected",
+                "color": 15158332,  # สีแดง (Red)
+                "fields": [
+                    {
+                        "name": "⏱️ Detected Time",
+                        "value": f"<t:{now_ts}:F> (<t:{now_ts}:R>)",
+                        "inline": False
+                    },
+                    {
+                        "name": "💥 Issue Details",
+                        "value": f"```{error_msg}```",
+                        "inline": False
+                    }
+                ],
+                "footer": {"text": "YouTube Notification Monitor • System Alert"}
+            }]
         }
         if post_discord(webhook, payload):
             print("Sent error alert to Discord.")
@@ -133,6 +148,32 @@ def handle_error(state, error_msg, webhook):
         save_state(state)
     else:
         print(f"Skipped error alert (Cooldown active): {error_msg}")
+
+
+def send_recovery_alert(webhook, last_error):
+    """ส่งแจ้งเตือนเมื่อระบบกลับมาทำงานเป็นปกติหลังเกิด Error แบบ Embeds สวยงาม"""
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    payload = {
+        "embeds": [{
+            "title": "✅ System Status — Monitor Recovered",
+            "color": 3066993,  # สีเขียว (Green)
+            "fields": [
+                {
+                    "name": "⏱️ Recovery Time",
+                    "value": f"<t:{now_ts}:F> (<t:{now_ts}:R>)",
+                    "inline": False
+                },
+                {
+                    "name": "🛠️ Resolved Issue",
+                    "value": f"```{last_error}```",
+                    "inline": False
+                }
+            ],
+            "footer": {"text": "YouTube Notification Monitor • System Status"}
+        }]
+    }
+    if post_discord(webhook, payload):
+        print("Sent recovery alert to Discord.")
 
 
 def send_recovery_alert(webhook, last_error):
@@ -235,7 +276,7 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
 
     header = DISCORD_HEADERS.get((group, event_type)) or ("🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!")
     info_line = f"from **{channel_name}**" + (f" | video duration `[{duration}]`" if duration and event_type == "video" else "")
-    message = f"{header}{time_tag}\n\n{info_line}\n\n\nhttps://www.youtube.com/watch?v={video_id}"
+    message = f"{header}{time_tag}\n\n{info_line}\n\nhttps://www.youtube.com/watch?v={video_id}"
 
     requests.post(webhook, json={"content": message, "allowed_mentions": {"parse": []}}, timeout=15).raise_for_status()
     time.sleep(1)
@@ -265,6 +306,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
+        raise RuntimeError("Testing Discord Red Card Alert")
         if not API_KEY:
             raise RuntimeError("YOUTUBE_API_KEY is missing from environment variables.")
 
