@@ -2,6 +2,7 @@ import os
 import json
 import re
 import requests
+from requests.exceptions import HTTPError
 from datetime import datetime, timezone
 from pathlib import Path
 import time
@@ -29,7 +30,7 @@ def parse_iso_duration(duration_str):
     hours = int(parts['hours'])
     minutes = int(parts['minutes'])
     seconds = int(parts['seconds'])
-    
+
     if hours > 0:
         return f"{hours}:{minutes:02d}:{seconds:02d}"
     return f"{minutes}:{seconds:02d}"
@@ -40,7 +41,7 @@ def generate_channel_summary(channels, groups, state):
     total = len(channels)
     summary_lines = []
     summary_lines.append(f"### YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n")
-    
+
     if total > MAX_RECOMMENDED_CHANNELS:
         summary_lines.append(f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n")
 
@@ -51,13 +52,13 @@ def generate_channel_summary(channels, groups, state):
         c_id = channel.get("id", "Unknown")
         c_name = channel.get("name", "Unknown")
         c_group = channel.get("group", "-")
-        
+
         group_info = groups.get(c_group, {})
         webhook_env = group_info.get("webhook_env", "")
         has_webhook = bool(os.environ.get(webhook_env)) if webhook_env else False
-        
+
         route_status = f"no error. `{webhook_env}`" if has_webhook else f"MISSING `{webhook_env}`"
-        
+
         ch_state = state.get("channels", {}).get(c_id)
         if ch_state:
             seen_count = len(ch_state.get("seen", []))
@@ -116,7 +117,7 @@ def handle_error(state, error_msg, webhook):
 
     if should_send_error_alert(state, error_msg):
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        
+
         payload = {
             "content": (
                 f"> **[🚨 System Alert 🚨] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
@@ -194,11 +195,11 @@ def send_outage_alert(webhook, last_run_str, current_time_str, duration_mins, co
 def api_get(endpoint, params):
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
-    
+
     if response.status_code == 403:
         error_detail = response.json().get("error", {}).get("message", "Quota exceeded or API error")
         raise RuntimeError(f"YouTube API Quota/Permission Error (403): {error_detail}")
-        
+
     response.raise_for_status()
     return response.json()
 
@@ -219,13 +220,19 @@ def get_channel_videos_api(channel_id):
     cid = channel_id.strip()
     playlist_id = "UU" + cid[2:] if cid.startswith("UC") else cid
 
-    data = api_get("playlistItems", {
-        "part": "snippet",
-        "playlistId": playlist_id,
-        "maxResults": 3
-    })
-    
-    return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
+    try:
+        data = api_get("playlistItems", {
+            "part": "snippet",
+            "playlistId": playlist_id,
+            "maxResults": 3
+        })
+        return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
+    except HTTPError as e:
+        # ดักจับ 404 กรณีช่องยังไม่มีคลิปอัปโหลด ไม่นับว่าสคริปต์ล่ม
+        if e.response is not None and e.response.status_code == 404:
+            print(f"Notice: Channel {channel_id} has no upload playlist (404). Returning empty.")
+            return []
+        raise e
 
 
 def get_video_details(video_ids):
@@ -304,7 +311,7 @@ def main():
             elapsed_seconds = (now - last_run_dt).total_seconds()
             outage_duration_mins = round(elapsed_seconds / 60)
             last_run_formatted = last_run_dt.strftime("%H:%M:%S UTC")
-            
+
             # ถ้าระยะห่างเกิน 7 นาที แปลว่ารอบก่อนหน้าล่ม/เลท
             if outage_duration_mins > 7:
                 outage_detected = True
@@ -366,12 +373,12 @@ def main():
                 ]
                 state.setdefault("channels", {})[channel_id] = {"seen": ids, "live_notified": live_ids}
                 state_changed = True
-                print(f"Initialized: {channel_name}")
+                print(f"Initialized state for: {channel_name}")
                 continue
 
             seen = list(channel_state.get("seen", []))
             live_notified = list(channel_state.get("live_notified", []))
-            
+
             webhook_env_key = groups.get(channel["group"], {}).get("webhook_env", "")
             webhook = os.environ.get(webhook_env_key)
 
@@ -399,7 +406,7 @@ def main():
                         state_changed = True
                         notifications_sent += 1
 
-                elif video_id not in seen and broadcast == "none" and live_details is None:
+                elif video_id not in seen and broadcast == "none":
                     event_time = snippet.get("publishedAt")
                     send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, event_time)
                     notifications_sent += 1
@@ -422,12 +429,12 @@ def main():
             state_changed = True
             print("Previous error cleared as run succeeded.")
 
-        # ส่งแจ้งเตือนเมื่อระบบ Recover และมีคลิปย้อนหลังถูกส่งออกไป
+        # 5. Outage Alert Recovery
         if outage_detected and notifications_sent > 0:
             current_time_formatted = now.strftime("%H:%M:%S UTC")
             send_outage_alert(error_webhook, last_run_formatted, current_time_formatted, outage_duration_mins, notifications_sent)
 
-        # 5. Save state
+        # 6. Save state
         state["last_run"] = now.isoformat()
         save_state(state)
         print("State updated and saved.")
