@@ -8,12 +8,19 @@ from pathlib import Path
 import time
 
 # -------------------------
-# CONFIG
+# CONFIG & CONSTANTS
 # -------------------------
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
 CONFIG_FILE, STATE_FILE = "config.json", "state.json"
 BASE_URL = "https://www.googleapis.com/youtube/v3"
 MAX_RECOMMENDED_CHANNELS = 30
+
+DISCORD_HEADERS = {
+    ("A", "live"): "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!",
+    ("A", "video"): "🎬 FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!",
+    ("B", "live"): "🔴 LIVE NOW!",
+    ("B", "video"): "🚨 NEW VIDEO ALERT 🚨",
+}
 
 session = requests.Session()
 
@@ -22,90 +29,66 @@ def parse_iso_duration(duration_str):
     """แปลง ISO 8601 Duration (เช่น PT10M15S -> 10:15, PT1H2M30S -> 1:02:30)"""
     if not duration_str or duration_str == "P0D":
         return ""
-    pattern = r'PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?'
-    match = re.match(pattern, duration_str)
-    if not match:
+    m = re.match(r'PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?', duration_str)
+    if not m:
         return ""
-    parts = match.groupdict(0)
-    hours = int(parts['hours'])
-    minutes = int(parts['minutes'])
-    seconds = int(parts['seconds'])
+    h, m_val, s = [int(v or 0) for v in m.groups()]
+    return f"{h}:{m_val:02d}:{s:02d}" if h > 0 else f"{m_val}:{s:02d}"
 
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{seconds:02d}"
-    return f"{minutes}:{seconds:02d}"
+
+def post_discord(webhook, payload, timeout=10):
+    """Helper สำหรับยิง HTTP POST หา Discord Webhook"""
+    if not webhook:
+        return False
+    try:
+        requests.post(webhook, json=payload, timeout=timeout)
+        return True
+    except Exception as e:
+        print(f"Failed to send Discord alert: {e}")
+        return False
 
 
 def generate_channel_summary(channels, groups, state):
     """สร้างตารางสรุปสถานะช่องและการ Route Webhook"""
     total = len(channels)
-    summary_lines = []
-    summary_lines.append(f"### YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n")
+    lines = [
+        f"### YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n",
+        *( [f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n"] if total > MAX_RECOMMENDED_CHANNELS else [] ),
+        "| No. | Channel Name | Channel ID | Group | Route / Webhook Status | Memory State |",
+        "|---|---|---|---|---|---|"
+    ]
 
-    if total > MAX_RECOMMENDED_CHANNELS:
-        summary_lines.append(f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n")
-
-    summary_lines.append("| No. | Channel Name | Channel ID | Group | Route / Webhook Status | Memory State |")
-    summary_lines.append("|---|---|---|---|---|---|")
-
+    print("\n" + "="*60 + f"\n CHANNEL SUMMARY ({total}/{MAX_RECOMMENDED_CHANNELS})\n" + "="*60)
     for idx, channel in enumerate(channels, 1):
-        c_id = channel.get("id", "Unknown")
-        c_name = channel.get("name", "Unknown")
-        c_group = channel.get("group", "-")
-
-        group_info = groups.get(c_group, {})
-        webhook_env = group_info.get("webhook_env", "")
-        has_webhook = bool(os.environ.get(webhook_env)) if webhook_env else False
-
-        route_status = f"no error. `{webhook_env}`" if has_webhook else f"MISSING `{webhook_env}`"
-
-        ch_state = state.get("channels", {}).get(c_id)
-        if ch_state:
-            seen_count = len(ch_state.get("seen", []))
-            state_status = f"Tracking ({seen_count} videos)"
-        else:
-            state_status = "..Pending First Run"
-
-        summary_lines.append(f"| {idx} | **{c_name}** | `{c_id}` | Group {c_group} | {route_status} | {state_status} |")
-
-    summary_text = "\n".join(summary_lines)
-
-    print("\n" + "="*60)
-    print(f" CHANNEL SUMMARY ({total}/{MAX_RECOMMENDED_CHANNELS})")
-    print("="*60)
-    for channel in channels:
-        c_group = channel.get("group", "-")
+        c_id, c_name, c_group = channel.get("id", "Unknown"), channel.get("name", "Unknown"), channel.get("group", "-")
         w_env = groups.get(c_group, {}).get("webhook_env", "")
-        w_ok = "OK" if os.environ.get(w_env) else "MISSING"
-        print(f" - [{channel.get('name')}] Group: {c_group} | Env: {w_env} ({w_ok})")
+        has_webhook = bool(os.environ.get(w_env)) if w_env else False
+
+        route_status = f"no error. `{w_env}`" if has_webhook else f"MISSING `{w_env}`"
+        ch_state = state.get("channels", {}).get(c_id)
+        state_status = f"Tracking ({len(ch_state.get('seen', []))} videos)" if ch_state else "..Pending First Run"
+
+        lines.append(f"| {idx} | **{c_name}** | `{c_id}` | Group {c_group} | {route_status} | {state_status} |")
+        print(f" - [{c_name}] Group: {c_group} | Env: {w_env} ({'OK' if has_webhook else 'MISSING'})")
     print("="*60 + "\n")
 
-    github_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if github_summary_path:
+    if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
         try:
-            with open(github_summary_path, "a", encoding="utf-8") as f:
-                f.write(summary_text + "\n")
+            Path(summary_path).open("a", encoding="utf-8").write("\n".join(lines) + "\n")
         except Exception as e:
             print(f"Failed to write to GITHUB_STEP_SUMMARY: {e}")
 
 
 def should_send_error_alert(state, error_msg, cooldown_hours=6):
     """ตรวจสอบว่าควรส่งแจ้งเตือน Error หรือไม่ (ป้องกันการส่งซ้ำทุก 5 นาที)"""
-    last_error = state.get("last_error")
-    last_error_time_str = state.get("last_error_time")
-
-    if last_error != error_msg:
+    if state.get("last_error") != error_msg:
         return True
-
-    if last_error_time_str:
+    if last_time_str := state.get("last_error_time"):
         try:
-            last_error_time = datetime.fromisoformat(last_error_time_str)
-            elapsed_hours = (datetime.now(timezone.utc) - last_error_time).total_seconds() / 3600
-            if elapsed_hours < cooldown_hours:
-                return False
+            last_time = datetime.fromisoformat(last_time_str)
+            return ((datetime.now(timezone.utc) - last_time).total_seconds() / 3600) >= cooldown_hours
         except Exception:
             return True
-
     return True
 
 
@@ -117,22 +100,12 @@ def handle_error(state, error_msg, webhook):
 
     if should_send_error_alert(state, error_msg):
         now_ts = int(datetime.now(timezone.utc).timestamp())
-
         payload = {
-            "content": (
-                f"> **[🚨 System Alert 🚨] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
-                f"\n"
-                f"💥 **Detected Issue:**\n"
-                f"```{error_msg}```"
-            ),
+            "content": f"> **[🚨 System Alert 🚨] YouTube Discord Monitor Error!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n\n💥 **Detected Issue:**\n```{error_msg}```",
             "allowed_mentions": {"parse": []}
         }
-        try:
-            requests.post(webhook, json=payload, timeout=10)
+        if post_discord(webhook, payload):
             print("Sent error alert to Discord.")
-        except Exception as e:
-            print(f"Failed to send error alert to Discord: {e}")
-
         state["last_error"] = error_msg
         state["last_error_time"] = datetime.now(timezone.utc).isoformat()
         save_state(state)
@@ -142,64 +115,38 @@ def handle_error(state, error_msg, webhook):
 
 def send_recovery_alert(webhook, last_error):
     """ส่งแจ้งเตือนเมื่อระบบกลับมาทำงานเป็นปกติหลังเกิด Error"""
-    if not webhook:
-        return
-
     now_ts = int(datetime.now(timezone.utc).timestamp())
     payload = {
-        "content": (
-            f"> **[✅ System Status ✅] YouTube Discord Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n"
-            f"\n"
-            f"🛠️ **Resolved Issue:**\n"
-            f"```{last_error}```"
-        ),
+        "content": f"> **[✅ System Status ✅] YouTube Discord Monitor is back to normal!** (<t:{now_ts}:F> - <t:{now_ts}:R>)\n\n🛠️ **Resolved Issue:**\n```{last_error}```",
         "allowed_mentions": {"parse": []}
     }
-    try:
-        requests.post(webhook, json=payload, timeout=10)
+    if post_discord(webhook, payload):
         print("Sent recovery alert to Discord.")
-    except Exception as e:
-        print(f"Failed to send recovery alert to Discord: {e}")
 
 
-def send_outage_alert(webhook, last_run_str, current_time_str, duration_mins, count):
-    """ส่งแจ้งเตือนเข้า Discord Error เมื่อระบบเพิ่ง Recover จากการล่ม และมีคลิปเด้งย้อนหลัง"""
-    if not webhook:
-        return
+def send_outage_alert(webhook, current_time_str, count):
+    """ส่งแจ้งเตือนเข้า Discord Error เมื่อพบคลิปดีเลย์เกิน 7 นาที (บ่งบอกว่า GHA เคยล่ม/เลท)"""
     payload = {
         "embeds": [{
             "title": "⚠️ GitHub Actions Outage / Delay Detected",
-            "color": 15105570,  # สีส้ม (Orange)
+            "color": 15105570,
             "fields": [
-                {
-                    "name": "⏱️ Down Time Period",
-                    "value": f"`{last_run_str}` ➔ `{current_time_str}` (~{duration_mins} mins)",
-                    "inline": False
-                },
-                {
-                    "name": "✅ Recovery Status",
-                    "value": f"GitHub Actions recovered successfully. Sent **{count}** catch-up notification(s) for missed uploads.",
-                    "inline": False
-                }
+                {"name": "⏱️ Recovery Time", "value": f"`{current_time_str}`", "inline": True},
+                {"name": "📌 Recovery Status", "value": f"GitHub Actions recovered successfully. Sent **{count}** delayed catch-up notification(s) (>7 mins delay).", "inline": False}
             ],
             "footer": {"text": "YouTube Notification Monitor • Auto-Recovery"}
         }]
     }
-    try:
-        requests.post(webhook, json=payload, timeout=10)
+    if post_discord(webhook, payload):
         print("Sent outage recovery alert to Discord.")
-    except Exception as e:
-        print(f"Failed to send outage alert to Discord: {e}")
 
 
 def api_get(endpoint, params):
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
-
     if response.status_code == 403:
         error_detail = response.json().get("error", {}).get("message", "Quota exceeded or API error")
         raise RuntimeError(f"YouTube API Quota/Permission Error (403): {error_detail}")
-
     response.raise_for_status()
     return response.json()
 
@@ -214,21 +161,15 @@ def save_state(state):
 
 
 # -------------------------
-# YOUTUBE (Official API)
+# YOUTUBE API
 # -------------------------
 def get_channel_videos_api(channel_id):
     cid = channel_id.strip()
     playlist_id = "UU" + cid[2:] if cid.startswith("UC") else cid
-
     try:
-        data = api_get("playlistItems", {
-            "part": "snippet",
-            "playlistId": playlist_id,
-            "maxResults": 5
-        })
+        data = api_get("playlistItems", {"part": "snippet", "playlistId": playlist_id, "maxResults": 10})
         return [item["snippet"]["resourceId"]["videoId"] for item in data.get("items", [])]
     except HTTPError as e:
-        # ดักจับ 404 กรณีช่องยังไม่มีคลิปอัปโหลด ไม่นับว่าสคริปต์ล่ม
         if e.response is not None and e.response.status_code == 404:
             print(f"Notice: Channel {channel_id} has no upload playlist (404). Returning empty.")
             return []
@@ -238,12 +179,8 @@ def get_channel_videos_api(channel_id):
 def get_video_details(video_ids):
     result = {}
     for start in range(0, len(video_ids), 50):
-        batch = video_ids[start:start + 50]
-        if batch:
-            data = api_get("videos", {
-                "part": "snippet,contentDetails,liveStreamingDetails",
-                "id": ",".join(batch)
-            })
+        if batch := video_ids[start:start + 50]:
+            data = api_get("videos", {"part": "snippet,contentDetails,liveStreamingDetails", "id": ",".join(batch)})
             for video in data.get("items", []):
                 result[video["id"]] = video
     return result
@@ -253,39 +190,16 @@ def get_video_details(video_ids):
 # DISCORD
 # -------------------------
 def send_discord(webhook, video_id, event_type, group, channel_name, duration="", event_time_iso=None):
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
-
     time_tag = ""
     if event_time_iso:
         dt = datetime.fromisoformat(event_time_iso.replace("Z", "+00:00"))
-        unix_ts = int(dt.timestamp())
-        time_tag = f" (<t:{unix_ts}:R>)"
+        time_tag = f" (<t:{int(dt.timestamp())}:R>)"
 
-    if group == "A":
-        if event_type == "live":
-            header = "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!"
-        else:
-            header = "🎬 FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!"
-    elif group == "B":
-        if event_type == "live":
-            header = "🔴 LIVE NOW!"
-        else:
-            header = "🚨 NEW VIDEO ALERT 🚨"
-    else:
-        header = "🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!"
+    header = DISCORD_HEADERS.get((group, event_type)) or ("🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!")
+    info_line = f"from **{channel_name}**" + (f" | video duration `[{duration}]`" if duration and event_type == "video" else "")
+    message = f"{header}{time_tag}\n\n{info_line}\n\n\nhttps://www.youtube.com/watch?v={video_id}"
 
-    info_line = f"from **{channel_name}**"
-    if duration and event_type == "video":
-        info_line += f" | video duration `[{duration}]`"
-
-    message = f"{header}{time_tag}\n\n{info_line}\n\n\n{video_url}"
-
-    payload = {
-        "content": message,
-        "allowed_mentions": {"parse": []}
-    }
-
-    requests.post(webhook, json=payload, timeout=15).raise_for_status()
+    requests.post(webhook, json={"content": message, "allowed_mentions": {"parse": []}}, timeout=15).raise_for_status()
     time.sleep(1)
     print(f"Sent {event_type} notification for '{channel_name}' to Group {group}: {video_id}")
 
@@ -295,30 +209,11 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
 # -------------------------
 def main():
     config = load_json(CONFIG_FILE, {})
-    state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
+    state = load_json(STATE_FILE, {"channels": {}})
 
     now = datetime.now(timezone.utc)
-
-    # --- Check Outage / Delay ---
-    last_run_raw = state.get("last_run")
-    outage_detected = False
-    outage_duration_mins = 0
-    last_run_formatted = "Unknown"
-
-    if last_run_raw:
-        try:
-            last_run_dt = datetime.fromisoformat(last_run_raw.replace("Z", "+00:00"))
-            elapsed_seconds = (now - last_run_dt).total_seconds()
-            outage_duration_mins = round(elapsed_seconds / 60)
-            last_run_formatted = last_run_dt.strftime("%H:%M:%S UTC")
-
-            # ถ้าระยะห่างเกิน 7 นาที แปลว่ารอบก่อนหน้าล่ม/เลท
-            if outage_duration_mins > 7:
-                outage_detected = True
-        except Exception as e:
-            print(f"Error parsing last_run timestamp: {e}")
-
     notifications_sent = 0
+    delayed_notifications = 0
 
     groups = config.get("groups", {})
     channels = config.get("channels", [])
@@ -388,28 +283,33 @@ def main():
 
             for video_id in ids:
                 video = details.get(video_id)
-                if video is None:
+                if not video:
                     continue
 
                 snippet = video["snippet"]
                 broadcast = snippet.get("liveBroadcastContent", "none")
                 live_details = video.get("liveStreamingDetails")
+                duration = parse_iso_duration(video.get("contentDetails", {}).get("duration", ""))
+                pub_time_str = snippet.get("publishedAt")
 
-                raw_duration = video.get("contentDetails", {}).get("duration", "")
-                duration = parse_iso_duration(raw_duration)
+                pub_dt = datetime.fromisoformat(pub_time_str.replace("Z", "+00:00")) if pub_time_str else None
+                is_delayed = pub_dt and (now - pub_dt).total_seconds() > 420
 
-                if broadcast == "live":
-                    event_time = (live_details.get("actualStartTime") if live_details else None) or snippet.get("publishedAt")
-                    if video_id not in live_notified:
-                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
-                        live_notified.append(video_id)
-                        state_changed = True
-                        notifications_sent += 1
+                should_notify = False
+                if broadcast == "live" and video_id not in live_notified:
+                    event_time = (live_details.get("actualStartTime") if live_details else None) or pub_time_str
+                    send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
+                    live_notified.append(video_id)
+                    state_changed = should_notify = True
 
-                elif video_id not in seen and broadcast == "none":
-                    event_time = snippet.get("publishedAt")
-                    send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, event_time)
+                elif broadcast == "none" and video_id not in seen:
+                    send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, pub_time_str)
+                    should_notify = True
+
+                if should_notify:
                     notifications_sent += 1
+                    if is_delayed:
+                        delayed_notifications += 1
 
                 if video_id not in seen:
                     seen.append(video_id)
@@ -420,24 +320,22 @@ def main():
 
         # 4. Clear Error on Success
         if "last_error" in state:
-            previous_error = state.get("last_error", "Unknown error")
-            send_recovery_alert(error_webhook, previous_error)
-
+            send_recovery_alert(error_webhook, state.get("last_error", "Unknown error"))
             del state["last_error"]
-            if "last_error_time" in state:
-                del state["last_error_time"]
+            state.pop("last_error_time", None)
             state_changed = True
             print("Previous error cleared as run succeeded.")
 
-        # 5. Outage Alert Recovery
-        if outage_detected and notifications_sent > 0:
-            current_time_formatted = now.strftime("%H:%M:%S UTC")
-            send_outage_alert(error_webhook, last_run_formatted, current_time_formatted, outage_duration_mins, notifications_sent)
+        # 5. Outage Recovery Alert
+        if delayed_notifications > 0:
+            send_outage_alert(error_webhook, now.strftime("%H:%M:%S UTC"), delayed_notifications)
 
         # 6. Save state
-        state["last_run"] = now.isoformat()
-        save_state(state)
-        print("State updated and saved.")
+        if state_changed:
+            save_state(state)
+            print("State updated and saved.")
+        else:
+            print("No updates found. Skipping state save to keep Git clean.")
 
         if failed_channels:
             print("Some channels failed. Retrying next run.")
