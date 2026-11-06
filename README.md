@@ -66,9 +66,9 @@ This section was made 100% by humans.
 - **Live Status Dashboard:** ตารางสรุปสถานะการติดตามช่อง และการตรวจสอบ Webhook Environment Variables ลงทั้ง Console Log และ GitHub Job Summary
 
 🚨 Error Handling & System Resilience
-- **Dedicated Error Alerting:** รองรับการแยกส่งแจ้งเตือนระบบขัดข้องเข้า DISCORD_WEBHOOK_ERROR โดยเฉพาะ
+- **Dedicated Error Alerting:** รองรับการแยกส่งแจ้งเตือนระบบขัดข้อง รวมถึงการแจ้งเตือนเมื่อระบบล่มชั่วคราว
 - **6-Hour Anti-Spam Cooldown:** บันทึกสถานะ Error ล่าสุดลง state.json เพื่อป้องกันการยิงข้อความแจ้งเตือน Error ซ้ำรบกวนใน Discord ทุกๆ 5 นาทีเมื่อ Cronjob รันล้มเหลวต่อเนื่อง
-- **Auto-Recovery Notification:** ส่งแจ้งเตือน System Recovery เข้า Discord อัตโนมัติ 1 ครั้งทันทีที่ระบบแก้ไขปัญหาสำเร็จและกลับมารันได้ตามปกติ พร้อมล้างสถานะ Error ใน State ออกทันที
+- **Auto-Recovery Notification:** ส่งแจ้งเตือน System Recovery เข้า Discord อัตโนมัติทันทีที่ระบบแก้ไขปัญหาสำเร็จ และกลับมารันได้ตามปกติ
 
 ---
 
