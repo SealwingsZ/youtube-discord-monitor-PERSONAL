@@ -52,14 +52,12 @@ def generate_channel_summary(channels, groups, state):
         c_name = channel.get("name", "Unknown")
         c_group = channel.get("group", "-")
         
-        # ตรวจสอบการ Route Webhook
         group_info = groups.get(c_group, {})
         webhook_env = group_info.get("webhook_env", "")
         has_webhook = bool(os.environ.get(webhook_env)) if webhook_env else False
         
         route_status = f"no error. `{webhook_env}`" if has_webhook else f"MISSING `{webhook_env}`"
         
-        # ตรวจสอบสถานะ State
         ch_state = state.get("channels", {}).get(c_id)
         if ch_state:
             seen_count = len(ch_state.get("seen", []))
@@ -71,7 +69,6 @@ def generate_channel_summary(channels, groups, state):
 
     summary_text = "\n".join(summary_lines)
 
-    # 1. แสดงผลลง Console Log
     print("\n" + "="*60)
     print(f" CHANNEL SUMMARY ({total}/{MAX_RECOMMENDED_CHANNELS})")
     print("="*60)
@@ -82,7 +79,6 @@ def generate_channel_summary(channels, groups, state):
         print(f" - [{channel.get('name')}] Group: {c_group} | Env: {w_env} ({w_ok})")
     print("="*60 + "\n")
 
-    # 2. ส่งออกไปยัง GitHub Job Summary (ถ้าอยู่บน GitHub Actions)
     github_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if github_summary_path:
         try:
@@ -119,7 +115,6 @@ def handle_error(state, error_msg, webhook):
         return
 
     if should_send_error_alert(state, error_msg):
-        # ดึงเวลาปัจจุบันในรูปแบบ Unix Timestamp สำหรับแสดงใน Discord
         now_ts = int(datetime.now(timezone.utc).timestamp())
         
         payload = {
@@ -143,6 +138,7 @@ def handle_error(state, error_msg, webhook):
     else:
         print(f"Skipped error alert (Cooldown active): {error_msg}")
 
+
 def send_recovery_alert(webhook, last_error):
     """ส่งแจ้งเตือนเมื่อระบบกลับมาทำงานเป็นปกติหลังเกิด Error"""
     if not webhook:
@@ -165,6 +161,36 @@ def send_recovery_alert(webhook, last_error):
         print(f"Failed to send recovery alert to Discord: {e}")
 
 
+def send_outage_alert(webhook, last_run_str, current_time_str, duration_mins, count):
+    """ส่งแจ้งเตือนเข้า Discord Error เมื่อระบบเพิ่ง Recover จากการล่ม และมีคลิปเด้งย้อนหลัง"""
+    if not webhook:
+        return
+    payload = {
+        "embeds": [{
+            "title": "⚠️ GitHub Actions Outage / Delay Detected",
+            "color": 15105570,  # สีส้ม (Orange)
+            "fields": [
+                {
+                    "name": "⏱️ Down Time Period",
+                    "value": f"`{last_run_str}` ➔ `{current_time_str}` (~{duration_mins} mins)",
+                    "inline": False
+                },
+                {
+                    "name": "📌 Recovery Status",
+                    "value": f"GitHub Actions recovered successfully. Sent **{count}** catch-up notification(s) for missed uploads.",
+                    "inline": False
+                }
+            ],
+            "footer": {"text": "YouTube Notification Monitor • Auto-Recovery"}
+        }]
+    }
+    try:
+        requests.post(webhook, json=payload, timeout=10)
+        print("Sent outage recovery alert to Discord.")
+    except Exception as e:
+        print(f"Failed to send outage alert to Discord: {e}")
+
+
 def api_get(endpoint, params):
     params["key"] = API_KEY
     response = session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
@@ -175,7 +201,6 @@ def api_get(endpoint, params):
         
     response.raise_for_status()
     return response.json()
-    
 
 
 def load_json(path, default):
@@ -229,7 +254,6 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
         unix_ts = int(dt.timestamp())
         time_tag = f" (<t:{unix_ts}:R>)"
 
-    # หัวข้อตามแต่ละ Group
     if group == "A":
         if event_type == "live":
             header = "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!"
@@ -243,12 +267,10 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
     else:
         header = "🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!"
 
-    # รายละเอียดช่องและความยาวคลิป
     info_line = f"from **{channel_name}**"
     if duration and event_type == "video":
         info_line += f" | video duration `[{duration}]`"
 
-    # จัดโครงสร้างข้อความใหม่ตามรูปแบบที่ต้องการ
     message = f"{header}{time_tag}\n\n{info_line}\n\n\n{video_url}"
 
     payload = {
@@ -260,6 +282,7 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
     time.sleep(1)
     print(f"Sent {event_type} notification for '{channel_name}' to Group {group}: {video_id}")
 
+
 # -------------------------
 # MAIN MONITOR
 # -------------------------
@@ -268,20 +291,39 @@ def main():
     state = load_json(STATE_FILE, {"last_run": None, "channels": {}})
 
     now = datetime.now(timezone.utc)
+
+    # --- Check Outage / Delay ---
+    last_run_raw = state.get("last_run")
+    outage_detected = False
+    outage_duration_mins = 0
+    last_run_formatted = "Unknown"
+
+    if last_run_raw:
+        try:
+            last_run_dt = datetime.fromisoformat(last_run_raw.replace("Z", "+00:00"))
+            elapsed_seconds = (now - last_run_dt).total_seconds()
+            outage_duration_mins = round(elapsed_seconds / 60)
+            last_run_formatted = last_run_dt.strftime("%H:%M:%S UTC")
+            
+            # ถ้าระยะห่างเกิน 7 นาที แปลว่ารอบก่อนหน้าล่ม/เลท
+            if outage_duration_mins > 7:
+                outage_detected = True
+        except Exception as e:
+            print(f"Error parsing last_run timestamp: {e}")
+
+    notifications_sent = 0
+
     groups = config.get("groups", {})
     channels = config.get("channels", [])
 
-    # ดึง Webhook สำรองกรณีไม่ได้ตั้ง DISCORD_WEBHOOK_ERROR ไว้
     default_webhook = None
     if groups:
         first_group = list(groups.values())[0]
         default_webhook = os.environ.get(first_group.get("webhook_env", ""))
 
-    # ดึง Webhook สำหรับส่ง Error โดยเฉพาะ (ถ้าไม่มีจะถอยไปใช้ default_webhook)
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        # สรุปสถานะช่องและ Route
         generate_channel_summary(channels, groups, state)
 
         if not API_KEY:
@@ -355,10 +397,12 @@ def main():
                         send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
                         live_notified.append(video_id)
                         state_changed = True
+                        notifications_sent += 1
 
                 elif video_id not in seen and broadcast == "none" and live_details is None:
                     event_time = snippet.get("publishedAt")
                     send_discord(webhook, video_id, "video", channel["group"], channel_name, duration, event_time)
+                    notifications_sent += 1
 
                 if video_id not in seen:
                     seen.append(video_id)
@@ -370,24 +414,23 @@ def main():
         # 4. Clear Error on Success
         if "last_error" in state:
             previous_error = state.get("last_error", "Unknown error")
-            
-            # ยิงแจ้งเตือนกลับเป็นปกติ 1 ครั้ง
             send_recovery_alert(error_webhook, previous_error)
 
-            # ลบสถานะ Error ออกจาก state
             del state["last_error"]
             if "last_error_time" in state:
                 del state["last_error_time"]
             state_changed = True
             print("Previous error cleared as run succeeded.")
 
+        # ส่งแจ้งเตือนเมื่อระบบ Recover และมีคลิปย้อนหลังถูกส่งออกไป
+        if outage_detected and notifications_sent > 0:
+            current_time_formatted = now.strftime("%H:%M:%S UTC")
+            send_outage_alert(error_webhook, last_run_formatted, current_time_formatted, outage_duration_mins, notifications_sent)
+
         # 5. Save state
-        if state_changed:
-            state["last_run"] = now.isoformat()
-            save_state(state)
-            print("State updated and saved.")
-        else:
-            print("No new updates. Skipping state save.")
+        state["last_run"] = now.isoformat()
+        save_state(state)
+        print("State updated and saved.")
 
         if failed_channels:
             print("Some channels failed. Retrying next run.")
@@ -395,10 +438,9 @@ def main():
         print("Monitor completed successfully.")
 
     except Exception as e:
-        # ส่งแจ้งเตือนเข้า Discord เมื่อมี Error ใดๆ เกิดขึ้น
         print(f"Unhandled Exception Caught: {e}")
         handle_error(state, str(e), error_webhook)
-        raise e  # re-raise เพื่อให้ GitHub Actions รับรู้ว่า Step นี้ล้มเหลว 
+        raise e
 
 
 if __name__ == "__main__":
