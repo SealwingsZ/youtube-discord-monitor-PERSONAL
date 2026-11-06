@@ -177,7 +177,7 @@ def send_outage_alert(webhook, last_run_str, current_time_str, duration_mins, co
                     "inline": False
                 },
                 {
-                    "name": "📌 Recovery Status",
+                    "name": "✅ Recovery Status",
                     "value": f"GitHub Actions recovered successfully. Sent **{count}** catch-up notification(s) for missed uploads.",
                     "inline": False
                 }
