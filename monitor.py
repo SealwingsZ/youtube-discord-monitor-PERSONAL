@@ -287,7 +287,6 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
 # MAIN MONITOR
 # -------------------------
 def main():
-    raise RuntimeError("Testing Discord Error Alert")
     config = load_json(CONFIG_FILE, {})
     state = load_json(STATE_FILE, {"channels": {}})
 
@@ -307,6 +306,7 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
+        raise RuntimeError("Testing Discord Error Alert")
         if not API_KEY:
             raise RuntimeError("YOUTUBE_API_KEY is missing from environment variables.")
 
