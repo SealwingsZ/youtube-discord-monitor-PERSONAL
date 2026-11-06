@@ -49,17 +49,38 @@ def post_discord(webhook, payload, timeout=10):
         return False
 
 
-def generate_channel_summary(channels, groups, state):
-    """สร้างตารางสรุปสถานะช่องและการ Route Webhook"""
+def generate_channel_summary(channels, groups, state, stats=None):
+    """สร้างตารางสรุปสถานะช่องและการ Route Webhook พร้อมสรุปผลการทำงานประจำรอบ"""
     total = len(channels)
     lines = [
-        f"### YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n",
-        *( [f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n"] if total > MAX_RECOMMENDED_CHANNELS else [] ),
-        "| No. | Channel Name | Channel ID | Group | Route / Webhook Status | Memory State |",
-        "|---|---|---|---|---|---|"
+        f"### 📡 YouTube Monitor Status Summary ({total}/{MAX_RECOMMENDED_CHANNELS} Channels)\n",
+        *( [f"> ⚠️ **Warning:** Exceeded recommended limit of {MAX_RECOMMENDED_CHANNELS} channels!\n"] if total > MAX_RECOMMENDED_CHANNELS else [] )
     ]
 
+    # เพิ่มบล็อก Execution Summary หากมีข้อมูล stats ส่งมา
+    if stats:
+        status_icon = "✅" if stats['status'] == "success" else "⚠️" if stats['status'] == "partial_fail" else "❌"
+        lines.extend([
+            "#### Execution Summary",
+            f"- **Run Status:** {status_icon} `{stats['status_text']}`",
+            f"- **Notifications Sent:** `{stats['notifications_sent']}`",
+            f"- **Delayed Catch-ups (>7m):** `{stats['delayed_notifications']}`",
+            f"- **Failed Channels:** `{stats['failed_count']}`",
+            f"- **Git State Saved:** `{'Saved.' if stats['state_changed'] else 'Skipped (Clean Run)'}`\n"
+        ])
+
+    lines.extend([
+        "| No. | Channel Name | Channel ID | Group | Route / Webhook Status | Memory State |",
+        "|---|---|---|---|---|---|"
+    ])
+
     print("\n" + "="*60 + f"\n CHANNEL SUMMARY ({total}/{MAX_RECOMMENDED_CHANNELS})\n" + "="*60)
+    if stats:
+        print(f" RUN STATUS : {stats['status_text']}")
+        print(f" NOTIFICATIONS SENT : {stats['notifications_sent']} (Delayed: {stats['delayed_notifications']})")
+        print(f" GIT STATE SAVED    : {'Yes' if stats['state_changed'] else 'No (Skipped)'}")
+        print("="*60)
+
     for idx, channel in enumerate(channels, 1):
         c_id, c_name, c_group = channel.get("id", "Unknown"), channel.get("name", "Unknown"), channel.get("group", "-")
         w_env = groups.get(c_group, {}).get("webhook_env", "")
@@ -244,8 +265,6 @@ def main():
     error_webhook = os.environ.get("DISCORD_WEBHOOK_ERROR") or default_webhook
 
     try:
-        generate_channel_summary(channels, groups, state)
-
         if not API_KEY:
             raise RuntimeError("YOUTUBE_API_KEY is missing from environment variables.")
 
@@ -323,7 +342,6 @@ def main():
 
                 should_notify = False
 
-                # 1. กรณีเป็นไลฟ์สดที่กำลังจัดอยู่
                 if broadcast == "live":
                     if video_id not in live_notified:
                         event_time = (live_details.get("actualStartTime") if live_details else None) or pub_time_str
@@ -331,7 +349,6 @@ def main():
                         live_notified.append(video_id)
                         state_changed = should_notify = True
 
-                # 2. กรณีเป็นคลิปปกติ (ต้องไม่เคยแจ้งเตือนใน seen/live_notified และต้องไม่ใช่ไลฟ์ที่จบแล้ว)
                 elif broadcast == "none":
                     is_past_live = live_details is not None
 
@@ -375,14 +392,45 @@ def main():
         else:
             print("No updates found. Skipping state save to keep Git clean.")
 
+        # 7. คำนวณสรุปผลการทำงาน (Run Stats)
         if failed_channels:
-            print("Some channels failed. Retrying next run.")
+            run_status = "partial_fail"
+            status_text = f"Completed with {len(failed_channels)} failed channel(s)."
+        elif notifications_sent > 0:
+            run_status = "success"
+            status_text = f"Completed with (Sent {notifications_sent} notification(s))."
+        else:
+            run_status = "success"
+            status_text = "Completed with no update."
+
+        stats = {
+            "status": run_status,
+            "status_text": status_text,
+            "notifications_sent": notifications_sent,
+            "delayed_notifications": delayed_notifications,
+            "failed_count": len(failed_channels),
+            "state_changed": state_changed
+        }
+
+        # แสดงผลตาราง + Execution Summary
+        generate_channel_summary(channels, groups, state, stats=stats)
 
         print("Monitor completed successfully.")
 
     except Exception as e:
         print(f"Unhandled Exception Caught: {e}")
         handle_error(state, str(e), error_webhook)
+        
+        # แสดง Summary เมื่อสคริปต์เกิด Exception
+        stats = {
+            "status": "error",
+            "status_text": f"Failed: {e}",
+            "notifications_sent": notifications_sent,
+            "delayed_notifications": delayed_notifications,
+            "failed_count": len(channels),
+            "state_changed": False
+        }
+        generate_channel_summary(channels, groups, state, stats=stats)
         raise e
 
 
