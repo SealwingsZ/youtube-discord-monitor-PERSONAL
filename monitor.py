@@ -232,7 +232,7 @@ def main():
     notifications_sent = 0
     delayed_notifications = 0
     if is_delayed:
-    delayed_notifications += 1
+        delayed_notifications += 1
     if not first_delayed_pub_dt:
         first_delayed_pub_dt = pub_dt
 
