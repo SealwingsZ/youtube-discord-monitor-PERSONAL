@@ -263,6 +263,7 @@ def is_youtube_short(video_id):
         print(f"Failed to check Shorts status for {video_id}: {e}")
         return False
 
+
 # -------------------------
 # DISCORD
 # -------------------------
@@ -365,7 +366,6 @@ def main():
                 print(f"Skipping {channel_name}: Missing environment variable '{webhook_env_key}'")
                 continue
 
-            # 🛠️ ปรับระดับ Indentation ของลูปด้านล่างให้อยู่ระดับ 12 Spaces
             for video_id in reversed(ids):
                 video = details.get(video_id)
                 if not video:
@@ -378,7 +378,17 @@ def main():
                 pub_time_str = snippet.get("publishedAt")
 
                 pub_dt = datetime.fromisoformat(pub_time_str.replace("Z", "+00:00")) if pub_time_str else None
-                delay_seconds = (now - pub_dt).total_seconds() if pub_dt else 0
+
+                # 🎯 ใช้ Reference Time ที่ถูกต้องตามประเภทคอนเทนต์
+                if broadcast == "live":
+                    actual_start = live_details.get("actualStartTime") if live_details else None
+                    event_time_str = actual_start or pub_time_str
+                    ref_dt = datetime.fromisoformat(actual_start.replace("Z", "+00:00")) if actual_start else pub_dt
+                else:
+                    event_time_str = pub_time_str
+                    ref_dt = pub_dt
+
+                delay_seconds = (now - ref_dt).total_seconds() if ref_dt else 0
 
                 is_delayed = delay_seconds > 420    # ⏱️ เกิน 7 นาที (นับเป็น Outage Delay)
                 is_too_old = delay_seconds > 1800   # ⛔ เกิน 30 นาที (ข้ามการแจ้งเตือน Discord)
@@ -387,8 +397,7 @@ def main():
 
                 if broadcast == "live":
                     if video_id not in live_notified:
-                        event_time = (live_details.get("actualStartTime") if live_details else None) or pub_time_str
-                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time)
+                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time_str)
                         live_notified.append(video_id)
                         state_changed = should_notify = True
 
@@ -410,8 +419,8 @@ def main():
                     notifications_sent += 1
                     if is_delayed:
                         delayed_notifications += 1
-                        if not first_delayed_pub_dt:
-                            first_delayed_pub_dt = pub_dt
+                        if not first_delayed_pub_dt and ref_dt:
+                            first_delayed_pub_dt = ref_dt
 
                 if video_id not in seen:
                     seen.append(video_id)
