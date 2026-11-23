@@ -18,8 +18,12 @@ ICT = timezone(timedelta(hours=7))
 
 DISCORD_HEADERS = {
     ("A", "live"): "🔴 NO WAY?? Unstable SMP MEMBER IS LIVE!!",
+    ("A", "upcoming_premiere"): "⏳ UPCOMING PREMIERE!! Unstable SMP NEW VIDEO SOON..",
+    ("A", "premiere"): "🍿 PREMIERING NOW!! Unstable SMP NEW VIDEO IS HERE!!",
     ("A", "video"): "🎬 FEEDING TIME🍗🍗 Unstable SMP NEW VIDEO!!",
     ("B", "live"): "🔴 LIVE NOW!",
+    ("B", "upcoming_premiere"): "⏳ UPCOMING PREMIERE..",
+    ("B", "premiere"): "🍿 PREMIERING NOW!",
     ("B", "video"): "🚨 NEW VIDEO ALERT 🚨",
 }
 
@@ -271,10 +275,19 @@ def send_discord(webhook, video_id, event_type, group, channel_name, duration=""
     time_tag = ""
     if event_time_iso:
         dt = datetime.fromisoformat(event_time_iso.replace("Z", "+00:00"))
-        time_tag = f" (<t:{int(dt.timestamp())}:R>)"
+        if event_type == "upcoming_premiere":
+            time_tag = f" <t:{int(dt.timestamp())}:R>"
+        else:
+            time_tag = f" (<t:{int(dt.timestamp())}:R>)"
 
-    header = DISCORD_HEADERS.get((group, event_type)) or ("🔴 NEW LIVE STREAM!!" if event_type == "live" else "🎬 NEW VIDEO!!")
-    info_line = f"from **{channel_name}**" + (f" | video duration `[{duration}]`" if duration and event_type == "video" else "")
+    default_headers = {
+        "live": "🔴 NEW LIVE STREAM!!",
+        "upcoming_premiere": "⏳ UPCOMING PREMIERE",
+        "premiere": "🍿 NEW PREMIERE!!",
+        "video": "🎬 NEW VIDEO!!",
+    }
+    header = DISCORD_HEADERS.get((group, event_type)) or default_headers.get(event_type, "🎬 NEW VIDEO!!")
+    info_line = f"from **{channel_name}**" + (f" | video duration `[{duration}]`" if duration and event_type in ("video", "premiere", "upcoming_premiere") else "")
     message = f"{header}{time_tag}\n\n{info_line}\n\nhttps://www.youtube.com/watch?v={video_id}"
 
     requests.post(webhook, json={"content": message, "allowed_mentions": {"parse": []}}, timeout=15).raise_for_status()
@@ -343,10 +356,15 @@ def main():
                     vid for vid in ids
                     if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "live"
                 ]
+                upcoming_ids = [
+                    vid for vid in ids
+                    if details.get(vid, {}).get("snippet", {}).get("liveBroadcastContent") == "upcoming"
+                ]
                 state.setdefault("channels", {})[channel_id] = {
                     "name": channel_name,
                     "seen": list(reversed(ids)),
-                    "live_notified": list(reversed(live_ids))
+                    "live_notified": list(reversed(live_ids)),
+                    "upcoming_notified": list(reversed(upcoming_ids))
                 }
                 state_changed = True
                 print(f"Initialized state for: {channel_name}")
@@ -358,6 +376,7 @@ def main():
 
             seen = list(channel_state.get("seen", []))
             live_notified = list(channel_state.get("live_notified", []))
+            upcoming_notified = list(channel_state.get("upcoming_notified", []))
 
             webhook_env_key = groups.get(channel["group"], {}).get("webhook_env", "")
             webhook = os.environ.get(webhook_env_key)
@@ -379,27 +398,47 @@ def main():
 
                 pub_dt = datetime.fromisoformat(pub_time_str.replace("Z", "+00:00")) if pub_time_str else None
 
-                # 🎯 ใช้ Reference Time ที่ถูกต้องตามประเภทคอนเทนต์
+                # ใช้ Reference Time ที่ถูกต้องตามประเภทคอนเทนต์
                 if broadcast == "live":
                     actual_start = live_details.get("actualStartTime") if live_details else None
                     event_time_str = actual_start or pub_time_str
                     ref_dt = datetime.fromisoformat(actual_start.replace("Z", "+00:00")) if actual_start else pub_dt
+                elif broadcast == "upcoming":
+                    event_time_str = live_details.get("scheduledStartTime") if live_details else None
+                    ref_dt = None  # ยังไม่เริ่มฉาย ไม่นับเป็นดีเลย์ Outage
                 else:
                     event_time_str = pub_time_str
                     ref_dt = pub_dt
 
                 delay_seconds = (now - ref_dt).total_seconds() if ref_dt else 0
 
-                is_delayed = delay_seconds > 420    # ⏱️ เกิน 7 นาที (นับเป็น Outage Delay)
-                is_too_old = delay_seconds > 1800   # ⛔ เกิน 30 นาที (ข้ามการแจ้งเตือน Discord)
+                is_delayed = delay_seconds > 420    # เกิน 7 นาที (นับเป็น Outage Delay)
+                is_too_old = delay_seconds > 1800   # เกิน 30 นาที (ข้ามการแจ้งเตือน Discord)
 
                 should_notify = False
 
-                if broadcast == "live":
-                    if video_id not in live_notified:
-                        send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time_str)
-                        live_notified.append(video_id)
+                if broadcast == "upcoming":
+                    # แจ้งเตือนล่วงหน้าเฉพาะคลิป Premiere (มี duration จริง)
+                    if duration and video_id not in upcoming_notified and video_id not in live_notified and video_id not in seen:
+                        send_discord(webhook, video_id, "upcoming_premiere", channel["group"], channel_name, duration, event_time_str)
+                        upcoming_notified.append(video_id)
                         state_changed = should_notify = True
+
+                elif broadcast == "live":
+                    if video_id not in live_notified and video_id not in seen:
+                        # ถ้าเป็น "live" แต่มี duration จริง แสดงว่าเป็นคลิป Premiere -> แจ้งรูปแบบ "premiere"
+                        if duration:
+                            if is_too_old:
+                                print(f"Skipped old premiere notification (>30m delay) for '{channel_name}': {video_id}")
+                            else:
+                                send_discord(webhook, video_id, "premiere", channel["group"], channel_name, duration, event_time_str)
+                                should_notify = True
+                        else:
+                            send_discord(webhook, video_id, "live", channel["group"], channel_name, duration, event_time_str)
+                            should_notify = True
+
+                        live_notified.append(video_id)
+                        state_changed = True
 
                 elif broadcast == "none":
                     is_past_live = live_details is not None
@@ -422,25 +461,31 @@ def main():
                         if not first_delayed_pub_dt and ref_dt:
                             first_delayed_pub_dt = ref_dt
 
-                if video_id not in seen:
+                # รอให้สถานะไม่ใช่ "upcoming" ก่อน ค่อยบันทึกลงประวัติ seen
+                if broadcast != "upcoming" and video_id not in seen:
                     seen.append(video_id)
                     state_changed = True
 
             # ---------------------------------------------------------
-            # 🔄 State Re-alignment (จัดเรียงลำดับ เก่า -> ใหม่ อัตโนมัติ)
+            # State Re-alignment (จัดเรียงลำดับ เก่า -> ใหม่ อัตโนมัติ)
             # ---------------------------------------------------------
             existing_seen_set = set(seen)
             old_history = [v for v in seen if v not in ids]
             api_chronological = [v for v in reversed(ids) if v in existing_seen_set]
-            
+
             realigned_seen = list(dict.fromkeys(old_history + api_chronological))
             realigned_live = list(dict.fromkeys(live_notified))
+            realigned_upcoming = list(dict.fromkeys(upcoming_notified))
 
             if realigned_seen != channel_state.get("seen"):
+                state_changed = True
+            if realigned_upcoming and realigned_upcoming != channel_state.get("upcoming_notified", []):
                 state_changed = True
 
             channel_state["seen"] = realigned_seen[-20:]
             channel_state["live_notified"] = realigned_live[-20:]
+            if realigned_upcoming or "upcoming_notified" in channel_state:
+                channel_state["upcoming_notified"] = realigned_upcoming[-20:]
 
         # 4. Clear Error on Success
         if "last_error" in state:
@@ -487,7 +532,7 @@ def main():
     except Exception as e:
         print(f"Unhandled Exception Caught: {e}")
         handle_error(state, str(e), error_webhook)
-        
+
         stats = {
             "status": "error",
             "status_text": f"Failed: {e}",
